@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · Research Analytics & Faculty Profiling Platform</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-side">
+    <div class="mark">
+      <div class="brand-mark" style="background:#fff;color:#0E3B70;">RA</div>
+      <div>
+        <div style="font-family:var(--font-display);font-weight:600;font-size:15px;">Research Analytics</div>
+        <div style="font-size:10.5px;letter-spacing:0.5px;color:#A9C4E8;text-transform:uppercase;">Faculty Profiling Platform</div>
+      </div>
+    </div>
+
+    <div>
+      <h1>One dashboard for every publication, citation and collaborator your faculty has.</h1>
+      <p>Pulls records from Google Scholar, Scopus and ORCID into a single view — built for accreditation, ranking and promotion reporting.</p>
+    </div>
+
+    <div style="display:flex;gap:28px;">
+      <div>
+        <div style="font-family:var(--font-display);font-size:24px;font-weight:700;">5</div>
+        <div style="font-size:11px;color:#A9C4E8;">Faculty onboarded</div>
+      </div>
+      <div>
+        <div style="font-family:var(--font-display);font-size:24px;font-weight:700;">209</div>
+        <div style="font-size:11px;color:#A9C4E8;">Publications indexed</div>
+      </div>
+      <div>
+        <div style="font-family:var(--font-display);font-size:24px;font-weight:700;">3</div>
+        <div style="font-size:11px;color:#A9C4E8;">Sources connected</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-form-col">
+    <div class="login-form">
+      <span class="eyebrow">Sprint 1 · Prototype build</span>
+      <h2>Welcome back</h2>
+      <div class="sub">Sign in to view your research analytics workspace.</div>
+
+      <div class="role-toggle">
+        <button type="button" class="active" id="roleFaculty">Faculty</button>
+        <button type="button" id="roleAdmin">Administrator</button>
+      </div>
+
+      <div id="loginError" style="display:none;margin-bottom:16px;padding:10px 14px;border-radius:8px;background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;font-size:13px;align-items:center;gap:8px;">
+        <span style="font-size:16px;">⚠️</span>
+        <span id="loginErrorMsg"></span>
+      </div>
+
+      <form id="loginForm">
+        <div class="field">
+          <label for="email">Institutional email</label>
+          <input type="email" id="email" placeholder="anjali.mehta@charusat.edu.in" value="anjali.mehta@charusat.edu.in" required>
+        </div>
+        <div class="field">
+          <label for="pass">Password</label>
+          <input type="password" id="pass" placeholder="••••••••" value="FacultySecurePass2026!" required>
+        </div>
+        <button type="submit" id="submitBtn" class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;">Sign in to dashboard</button>
+      </form>
+
+      <div class="demo-note">
+        <strong>Review build notice:</strong> authentication is UI-only for this milestone — click <em>Sign in</em> to preview the dashboard with sample data seeded from mock Google Scholar / Scopus / ORCID records. Live SSO integration is scheduled for Sprint 2.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  const roleFacultyBtn = document.getElementById('roleFaculty');
+  const roleAdminBtn = document.getElementById('roleAdmin');
+  const emailInput = document.getElementById('email');
+  const passInput = document.getElementById('pass');
+  const loginForm = document.getElementById('loginForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const loginError = document.getElementById('loginError');
+  const loginErrorMsg = document.getElementById('loginErrorMsg');
+
+  function showError(msg) {
+    loginErrorMsg.textContent = msg;
+    loginError.style.display = 'flex';
+  }
+
+  function hideError() {
+    loginError.style.display = 'none';
+    loginErrorMsg.textContent = '';
+  }
+
+  roleFacultyBtn.addEventListener('click', function() {
+    this.classList.add('active');
+    roleAdminBtn.classList.remove('active');
+    emailInput.value = 'anjali.mehta@charusat.edu.in';
+    passInput.value = 'FacultySecurePass2026!';
+    hideError();
+  });
+
+  roleAdminBtn.addEventListener('click', function() {
+    this.classList.add('active');
+    roleFacultyBtn.classList.remove('active');
+    emailInput.value = 'admin@charusat.edu.in';
+    passInput.value = 'AdminSecurePassword123!';
+    hideError();
+  });
+
+  loginForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    hideError();
+
+    const email = emailInput.value.trim();
+    const password = passInput.value;
+
+    if (!email || !password) {
+      showError('Please provide both email and password');
+      return;
+    }
+
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.75';
+    submitBtn.style.cursor = 'wait';
+    submitBtn.innerHTML = 'Signing in...';
+
+    try {
+      await AUTH.login(email, password);
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = '1';
+      submitBtn.style.cursor = 'pointer';
+      submitBtn.innerHTML = originalText;
+      showError(err.message || 'Invalid email or password');
+    }
+  });
+</script>
+</body>
+</html>

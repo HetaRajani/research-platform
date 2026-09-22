@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faculty Directory · Research Analytics Platform</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">RA</div>
+      <div class="brand-text">
+        <div class="name">Research Analytics</div>
+        <div class="sub">Faculty Profiling</div>
+      </div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
+      <a class="nav-link active" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
+      <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
+    </nav>
+    <nav class="nav-group">
+      <div class="nav-label">Planned · AI Module</div>
+      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">✦ Collaborator Suggestions</span>
+      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">↗ Productivity Forecast</span>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="progress-label"><span>Sprint 1 progress</span><span>Week 4 / 4</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:78%;"></div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="topbar-title">Faculty Directory</div>
+        <div class="topbar-sub">5 profiles · aggregated from 3 sources</div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">🔍 <input type="text" id="searchInput" placeholder="Search by name or area..."></div>
+        <div class="avatar-chip">
+          <div class="dot">AM</div>
+          <div class="who">Dr. Anjali Mehta<div class="role">Faculty</div></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <span class="eyebrow">Directory</span>
+        <h1 style="font-size:22px;">Browse faculty research profiles</h1>
+        <div class="desc">Each card consolidates metrics pulled from Google Scholar, Scopus and ORCID into one profile. Click a card to open the full profile.</div>
+      </div>
+
+      <div class="filters-row">
+        <select id="deptFilter">
+          <option value="">All departments</option>
+        </select>
+        <select id="sortFilter">
+          <option value="citations">Sort by citations</option>
+          <option value="hindex">Sort by h-index</option>
+          <option value="publications">Sort by publications</option>
+          <option value="name">Sort by name</option>
+        </select>
+        <span style="margin-left:auto;font-size:12.5px;color:var(--ink-400);" id="resultCount"></span>
+      </div>
+
+      <div class="grid grid-3" id="facultyGrid" style="margin-bottom:20px;"></div>
+
+      <div class="footnote">
+        Prototype build · faculty records shown are sample data used to validate the directory layout and profile structure.
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+  const grid = document.getElementById('facultyGrid');
+  const deptFilter = document.getElementById('deptFilter');
+  const sortFilter = document.getElementById('sortFilter');
+  const searchInput = document.getElementById('searchInput');
+  const resultCount = document.getElementById('resultCount');
+  const topbarSub = document.querySelector('.topbar-sub');
+
+  let facultyData = [];
+  let isLoading = false;
+  let hasError = false;
+
+  function initials(name){
+    if(!name) return '??';
+    return name.replace('Dr. ','').split(' ').map(w=>w[0]).slice(0,2).join('');
+  }
+
+  function showLoading(){
+    grid.innerHTML = `
+      <div class="card card-pad" style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--ink-600);">
+        <div style="font-size: 28px; margin-bottom: 10px;">⏳</div>
+        <div style="font-size: 15px; font-weight: 600; color: var(--blue-900);">Loading faculty directory from database...</div>
+        <div style="font-size: 12.5px; color: var(--ink-400); margin-top: 4px;">Connecting to ${window.APP_CONFIG.API_BASE_URL}/faculty</div>
+      </div>
+    `;
+    resultCount.textContent = 'Loading...';
+  }
+
+  function showError(msg){
+    grid.innerHTML = `
+      <div class="card card-pad" style="grid-column: 1 / -1; text-align: center; padding: 48px 20px;">
+        <div style="font-size: 28px; margin-bottom: 10px;">⚠️</div>
+        <div style="font-size: 15px; font-weight: 600; color: #b91c1c;">Unable to load faculty records</div>
+        <div style="font-size: 12.5px; color: var(--ink-600); margin-top: 4px; max-width: 480px; margin-left: auto; margin-right: auto;">
+          ${msg || 'Could not connect to the backend server. Please verify the API server is running.'}
+        </div>
+        <button onclick="loadFaculty()" style="margin-top: 16px; padding: 7px 18px; background: var(--blue-700); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer;">
+          Retry Connection
+        </button>
+      </div>
+    `;
+    resultCount.textContent = '0 profiles';
+  }
+
+  function render(){
+    if(isLoading || hasError) return;
+
+    const dept = deptFilter.value;
+    const sort = sortFilter.value;
+    const q = searchInput.value.trim().toLowerCase();
+
+    let list = facultyData.filter(f=>{
+      const matchDept = !dept || f.department === dept;
+      const areas = f.researchInterests || f.researchAreas || [];
+      const matchQ = !q || 
+        (f.name && f.name.toLowerCase().includes(q)) || 
+        (f.department && f.department.toLowerCase().includes(q)) || 
+        areas.some(a => a.toLowerCase().includes(q));
+      return matchDept && matchQ;
+    });
+
+    const sorters = {
+      citations: (a,b)=>(b.citationCount ?? b.totalCitations ?? 0) - (a.citationCount ?? a.totalCitations ?? 0),
+      hindex: (a,b)=>(b.hIndex || 0) - (a.hIndex || 0),
+      publications: (a,b)=>(b.publicationCount ?? b.totalPublications ?? 0) - (a.publicationCount ?? a.totalPublications ?? 0),
+      name: (a,b)=> (a.name || '').localeCompare(b.name || '')
+    };
+    list.sort(sorters[sort]);
+
+    resultCount.textContent = `${list.length} of ${facultyData.length} profiles`;
+
+    if(list.length === 0){
+      grid.innerHTML = `
+        <div class="card card-pad" style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--ink-600);">
+          <div style="font-size: 28px; margin-bottom: 10px;">🔍</div>
+          <div style="font-size: 15px; font-weight: 600; color: var(--blue-900);">No faculty profiles found</div>
+          <div style="font-size: 12.5px; color: var(--ink-400); margin-top: 4px;">Try refining your search keyword or clearing the department filter.</div>
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = '';
+    list.forEach(f=>{
+      const id = f.facultyCode || f._id || f.id;
+      const areas = f.researchInterests || f.researchAreas || [];
+      const citations = f.citationCount ?? f.totalCitations ?? 0;
+      const papers = f.publicationCount ?? f.totalPublications ?? 0;
+      const hIndex = f.hIndex || 0;
+
+      const scholarOn = Boolean(f.googleScholarId || f.sources?.googleScholar?.connected);
+      const scopusOn = Boolean(f.scopusId || f.sources?.scopus?.connected);
+      const orcidOn = Boolean(f.orcidId || f.orcid || f.sources?.orcid?.connected);
+
+      const card = document.createElement('div');
+      card.className = 'faculty-card';
+      card.onclick = ()=> window.location.href = `faculty-profile.html?id=${encodeURIComponent(id)}`;
+      card.innerHTML = `
+        <div class="faculty-top">
+          <div class="faculty-avatar">${initials(f.name)}</div>
+          <div>
+            <div class="faculty-name">${f.name}</div>
+            <div class="faculty-dept">${f.designation} · ${f.department}</div>
+          </div>
+        </div>
+        <div>
+          ${areas.slice(0,3).map(a=>`<span class="tag">${a}</span>`).join('')}
+        </div>
+        <div class="faculty-metrics">
+          <div class="m"><div class="n">${hIndex}</div><div class="l">h-index</div></div>
+          <div class="m"><div class="n">${citations}</div><div class="l">Citations</div></div>
+          <div class="m"><div class="n">${papers}</div><div class="l">Papers</div></div>
+        </div>
+        <div class="source-row">
+          <span class="source-chip ${scholarOn ? 'on':'off'}"><span class="led"></span>Scholar</span>
+          <span class="source-chip ${scopusOn ? 'on':'off'}"><span class="led"></span>Scopus</span>
+          <span class="source-chip ${orcidOn ? 'on':'off'}"><span class="led"></span>ORCID</span>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  async function loadFaculty(){
+    isLoading = true;
+    hasError = false;
+    showLoading();
+
+    try {
+      const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/faculty`);
+      if(!response.ok){
+        throw new Error(`Server returned HTTP ${response.status}`);
+      }
+      const json = await response.json();
+      if(!json.success || !Array.isArray(json.data)){
+        throw new Error(json.message || 'Invalid data format from API');
+      }
+
+      facultyData = json.data;
+      isLoading = false;
+
+      // Populate department options dynamically from database
+      deptFilter.innerHTML = '<option value="">All departments</option>';
+      const departments = [...new Set(facultyData.map(f=>f.department).filter(Boolean))].sort();
+      departments.forEach(d=>{
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = d;
+        deptFilter.appendChild(opt);
+      });
+
+      if(topbarSub){
+        topbarSub.textContent = `${facultyData.length} profiles · loaded from MongoDB Atlas`;
+      }
+
+      render();
+    } catch(err) {
+      console.error('Failed to load faculty:', err);
+      isLoading = false;
+      hasError = true;
+      showError(err.message);
+    }
+  }
+
+  deptFilter.addEventListener('change', render);
+  sortFilter.addEventListener('change', render);
+  searchInput.addEventListener('input', render);
+
+  loadFaculty();
+</script>
+</body>
+</html>

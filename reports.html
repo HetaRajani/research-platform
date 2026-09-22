@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports · Research Analytics Platform</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">RA</div>
+      <div class="brand-text">
+        <div class="name">Research Analytics</div>
+        <div class="sub">Faculty Profiling</div>
+      </div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
+      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
+      <a class="nav-link active" href="reports.html"><span class="ico">▦</span> Reports</a>
+    </nav>
+    <nav class="nav-group">
+      <div class="nav-label">Planned · AI Module</div>
+      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">✦ Collaborator Suggestions</span>
+      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">↗ Productivity Forecast</span>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="progress-label"><span>Sprint 1 progress</span><span>Week 4 / 4</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:78%;"></div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="topbar-title">Reports</div>
+        <div class="topbar-sub">Accreditation · ranking · promotion exports</div>
+      </div>
+      <div class="topbar-right">
+        <div class="avatar-chip">
+          <div class="dot">AM</div>
+          <div class="who">Dr. Anjali Mehta<div class="role">Faculty</div></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <span class="eyebrow">Report builder</span>
+        <h1 style="font-size:22px;">Generate a research summary report</h1>
+        <div class="desc">Configure scope and export. In this milestone the builder is UI-only — it previews the report layout using sample data; PDF/Excel export is planned for Sprint 2.</div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card card-pad">
+          <h3 style="margin-bottom:14px;">Report configuration</h3>
+          <div class="field">
+            <label>Report type</label>
+            <select id="reportType">
+              <option>Accreditation summary (NAAC / NBA)</option>
+              <option>Faculty promotion dossier</option>
+              <option>Institutional ranking submission</option>
+              <option>Annual research report</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Scope</label>
+            <select id="reportScope">
+              <option value="all">All departments</option>
+              <option value="F001">Dr. Anjali Mehta only</option>
+              <option value="F004">Dr. Vikram Desai only</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Period</label>
+            <select id="reportPeriod">
+              <option>2021 – 2025</option>
+              <option>2023 – 2025</option>
+              <option>2025 only</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="genBtn" style="width:100%;justify-content:center;padding:11px;">Preview report</button>
+        </div>
+
+        <div class="card card-pad">
+          <h3>Export format</h3>
+          <div class="hint" style="margin-bottom:14px;">Disabled in this build — arriving Sprint 2</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed;justify-content:flex-start;">⇩ Export as PDF</button>
+            <button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed;justify-content:flex-start;">⇩ Export as Excel (.xlsx)</button>
+            <button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed;justify-content:flex-start;">✉ Email to administrator</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-pad" id="previewCard" style="margin-top:20px;display:none;">
+        <span class="eyebrow">Preview</span>
+        <h3 id="previewTitle" style="margin-bottom:14px;"></h3>
+        <div id="previewBody"></div>
+      </div>
+
+      <div class="footnote">Prototype build · report generation logic and export pipeline are scheduled for the next development sprint.</div>
+    </main>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script>
+  document.getElementById('genBtn').addEventListener('click', function(){
+    const type = document.getElementById('reportType').value;
+    const scope = document.getElementById('reportScope').value;
+    const period = document.getElementById('reportPeriod').value;
+
+    const list = scope === 'all' ? FACULTY : FACULTY.filter(f=>f.id===scope);
+    const totalPub = list.reduce((s,f)=>s+f.totalPublications,0);
+    const totalCit = list.reduce((s,f)=>s+f.totalCitations,0);
+    const avgH = (list.reduce((s,f)=>s+f.hIndex,0)/list.length).toFixed(1);
+
+    document.getElementById('previewTitle').textContent = `${type} — ${period}`;
+    document.getElementById('previewBody').innerHTML = `
+      <div class="grid grid-3" style="margin-bottom:16px;">
+        <div class="stat-card"><div class="label">Faculty in scope</div><div class="value">${list.length}</div></div>
+        <div class="stat-card"><div class="label">Total publications</div><div class="value">${totalPub}</div></div>
+        <div class="stat-card"><div class="label">Total citations</div><div class="value">${totalCit}</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Faculty</th><th>Department</th><th>h-index</th><th>Publications</th><th>Citations</th></tr></thead>
+        <tbody>
+          ${list.map(f=>`<tr><td>${f.name}</td><td>${f.department}</td><td>${f.hIndex}</td><td>${f.totalPublications}</td><td>${f.totalCitations}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+    document.getElementById('previewCard').style.display = 'block';
+  });
+</script>
+</body>
+</html>

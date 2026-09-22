@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Publications · Research Analytics Platform</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">RA</div>
+      <div class="brand-text">
+        <div class="name">Research Analytics</div>
+        <div class="sub">Faculty Profiling</div>
+      </div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
+      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link active" href="publications.html"><span class="ico">▤</span> Publications</a>
+      <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
+    </nav>
+    <nav class="nav-group">
+      <div class="nav-label">Planned · AI Module</div>
+      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">✦ Collaborator Suggestions</span>
+      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">↗ Productivity Forecast</span>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="progress-label"><span>Sprint 1 progress</span><span>Week 4 / 4</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:78%;"></div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="topbar-title">Publications</div>
+        <div class="topbar-sub">14 sample records indexed across 5 faculty</div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">🔍 <input type="text" id="searchInput" placeholder="Search title or venue..."></div>
+        <div class="avatar-chip">
+          <div class="dot">AM</div>
+          <div class="who">Dr. Anjali Mehta<div class="role">Faculty</div></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <span class="eyebrow">Records</span>
+        <h1 style="font-size:22px;">All indexed publications</h1>
+        <div class="desc">Consolidated list pulled from Google Scholar and Scopus records. Filter by faculty, year, type or source.</div>
+      </div>
+
+      <div class="filters-row">
+        <select id="facultyFilter"><option value="">All faculty</option></select>
+        <select id="yearFilter"><option value="">All years</option></select>
+        <select id="domainFilter"><option value="">All research domains</option></select>
+        <select id="sourceFilter">
+          <option value="">All sources</option>
+          <option value="Google Scholar">Google Scholar</option>
+          <option value="Scopus">Scopus</option>
+        </select>
+        <select id="typeFilter">
+          <option value="">All types</option>
+          <option value="Journal">Journal</option>
+          <option value="Conference">Conference</option>
+        </select>
+        <span style="margin-left:auto;font-size:12.5px;color:var(--ink-400);" id="resultCount">Loading...</span>
+      </div>
+
+      <div class="card">
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr><th>Title</th><th>Faculty</th><th>Year</th><th>Venue</th><th>Type</th><th>Citations</th><th>Source</th></tr>
+            </thead>
+            <tbody id="pubBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination-bar" id="paginationBar" style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-top:1px solid var(--blue-050);font-size:13px;color:var(--ink-600);flex-wrap:wrap;gap:10px;">
+          <span id="pageInfo">Loading pagination...</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button id="prevBtn" style="padding:5px 14px;background:var(--white);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12.5px;color:var(--ink-900);cursor:pointer;">← Previous</button>
+            <span id="pageNumber" style="font-weight:600;font-size:12.5px;color:var(--blue-900);padding:0 6px;">1</span>
+            <button id="nextBtn" style="padding:5px 14px;background:var(--white);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12.5px;color:var(--ink-900);cursor:pointer;">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footnote">Data source: Publications indexed in MongoDB Atlas backend database.</div>
+    </main>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+  const facultyFilter = document.getElementById('facultyFilter');
+  const yearFilter = document.getElementById('yearFilter');
+  const domainFilter = document.getElementById('domainFilter');
+  const typeFilter = document.getElementById('typeFilter');
+  const sourceFilter = document.getElementById('sourceFilter');
+  const searchInput = document.getElementById('searchInput');
+  const pubBody = document.getElementById('pubBody');
+  const resultCount = document.getElementById('resultCount');
+  const pageInfo = document.getElementById('pageInfo');
+  const pageNumber = document.getElementById('pageNumber');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const topbarSub = document.querySelector('.topbar-sub');
+
+  let currentPage = 1;
+  const pageSize = 6;
+  let totalPages = 1;
+  let totalRecords = 0;
+  let searchTimeout = null;
+
+  function showLoading(){
+    pubBody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:40px 20px;color:var(--ink-600);">
+          <div style="font-size:26px;margin-bottom:8px;">⏳</div>
+          <div style="font-size:14.5px;font-weight:600;color:var(--blue-900);">Loading publication records...</div>
+          <div style="font-size:12px;color:var(--ink-400);margin-top:4px;">Connecting to ${window.APP_CONFIG.API_BASE_URL}/publications</div>
+        </td>
+      </tr>
+    `;
+    resultCount.textContent = 'Loading...';
+  }
+
+  function showError(msg){
+    pubBody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:40px 20px;">
+          <div style="font-size:26px;margin-bottom:8px;">⚠️</div>
+          <div style="font-size:14.5px;font-weight:600;color:#b91c1c;">Failed to load publications</div>
+          <div style="font-size:12.5px;color:var(--ink-600);margin-top:4px;">${msg || 'Could not connect to the backend server.'}</div>
+          <button onclick="loadPublications()" style="margin-top:14px;padding:6px 16px;background:var(--blue-700);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12.5px;cursor:pointer;">
+            Retry
+          </button>
+        </td>
+      </tr>
+    `;
+    resultCount.textContent = '0 records';
+    pageInfo.textContent = 'Error connecting to database';
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+  }
+
+  function showEmpty(){
+    pubBody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:40px 20px;color:var(--ink-600);">
+          <div style="font-size:26px;margin-bottom:8px;">🔍</div>
+          <div style="font-size:14.5px;font-weight:600;color:var(--blue-900);">No publications found</div>
+          <div style="font-size:12.5px;color:var(--ink-400);margin-top:4px;">No records match your selected filters or search terms.</div>
+        </td>
+      </tr>
+    `;
+    resultCount.textContent = '0 of ' + totalRecords + ' records';
+    pageInfo.textContent = 'Showing 0 records';
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+  }
+
+  async function initFilters(){
+    // Initialize Year Filter options
+    const currentYear = new Date().getFullYear();
+    const years = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4];
+    yearFilter.innerHTML = '<option value="">All years</option>';
+    years.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y;
+      yearFilter.appendChild(opt);
+    });
+
+    // Populate Faculty Filter options from API
+    try {
+      const res = await fetch(`${window.APP_CONFIG.API_BASE_URL}/faculty`);
+      const json = await res.json();
+      if(json.success && Array.isArray(json.data)){
+        facultyFilter.innerHTML = '<option value="">All faculty</option>';
+        json.data.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.facultyCode || f._id;
+          opt.textContent = f.name;
+          facultyFilter.appendChild(opt);
+        });
+
+        // Pre-select faculty if query param exists
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlFacultyId = urlParams.get('facultyId');
+        if(urlFacultyId){
+          facultyFilter.value = urlFacultyId;
+        }
+      }
+    } catch(err){
+      console.warn('Could not populate faculty dropdown:', err);
+    }
+
+    // Populate Research Domain Filter options
+    const domainList = [
+      'Artificial Intelligence & Machine Learning',
+      'Cloud Computing & Cybersecurity',
+      'IoT & Embedded Systems',
+      'Data Science & Analytics'
+    ];
+    domainFilter.innerHTML = '<option value="">All research domains</option>';
+    domainList.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      domainFilter.appendChild(opt);
+    });
+  }
+
+  async function loadPublications(){
+    showLoading();
+
+    const params = new URLSearchParams();
+    params.set('page', currentPage);
+    params.set('limit', pageSize);
+
+    if(yearFilter.value) params.set('year', yearFilter.value);
+    if(sourceFilter.value) params.set('source', sourceFilter.value);
+    if(facultyFilter.value) params.set('facultyId', facultyFilter.value);
+    if(domainFilter.value) params.set('researchDomain', domainFilter.value);
+    if(typeFilter.value) params.set('type', typeFilter.value);
+    if(searchInput.value.trim()) params.set('search', searchInput.value.trim());
+
+    try {
+      const res = await fetch(`${window.APP_CONFIG.API_BASE_URL}/publications?${params.toString()}`);
+      if(!res.ok){
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+      const json = await res.json();
+      if(!json.success || !Array.isArray(json.data)){
+        throw new Error(json.message || 'Invalid response from publications API');
+      }
+
+      totalRecords = json.pagination?.total || 0;
+      totalPages = json.pagination?.pages || 1;
+      currentPage = json.pagination?.page || 1;
+
+      renderTable(json.data, json.pagination);
+    } catch(err){
+      console.error('Error loading publications:', err);
+      showError(err.message);
+    }
+  }
+
+  function renderTable(list, pagination){
+    if(list.length === 0){
+      showEmpty();
+      return;
+    }
+
+    pubBody.innerHTML = '';
+    list.forEach(p => {
+      const firstFaculty = (Array.isArray(p.facultyIds) && p.facultyIds.length > 0) ? p.facultyIds[0] : null;
+      const facultyName = firstFaculty?.name || '—';
+      const facultyTargetId = firstFaculty?.facultyCode || firstFaculty?._id || '';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="max-width:320px;font-weight:500;">${p.title}</td>
+        <td>
+          ${facultyTargetId ? `<a href="faculty-profile.html?id=${encodeURIComponent(facultyTargetId)}" style="color:var(--blue-700);">${facultyName}</a>` : `<span>${facultyName}</span>`}
+        </td>
+        <td>${p.year}</td>
+        <td style="color:var(--ink-600);">${p.venue || p.journal || p.conference || '—'}</td>
+        <td><span class="pill muted">${p.publicationType || p.type || 'Journal'}</span></td>
+        <td>${p.citations || 0}</td>
+        <td><span class="pill">${p.source || 'Manual'}</span></td>
+      `;
+      pubBody.appendChild(tr);
+    });
+
+    const total = pagination.total;
+    const page = pagination.page;
+    const pages = pagination.pages;
+
+    resultCount.textContent = `Showing ${list.length} of ${total} records`;
+    pageInfo.textContent = `Showing page ${page} of ${pages} (${total} total records)`;
+    pageNumber.textContent = `${page} / ${pages}`;
+
+    if(topbarSub){
+      topbarSub.textContent = `${total} records indexed in MongoDB Atlas`;
+    }
+
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= pages;
+    prevBtn.style.opacity = page <= 1 ? '0.45' : '1';
+    nextBtn.style.opacity = page >= pages ? '0.45' : '1';
+    prevBtn.style.cursor = page <= 1 ? 'not-allowed' : 'pointer';
+    nextBtn.style.cursor = page >= pages ? 'not-allowed' : 'pointer';
+  }
+
+  // Filter change handlers (reset to page 1)
+  [facultyFilter, yearFilter, domainFilter, typeFilter, sourceFilter].forEach(el => {
+    el.addEventListener('change', () => {
+      currentPage = 1;
+      loadPublications();
+    });
+  });
+
+  // Debounced search
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentPage = 1;
+      loadPublications();
+    }, 280);
+  });
+
+  // Pagination button handlers
+  prevBtn.addEventListener('click', () => {
+    if(currentPage > 1){
+      currentPage--;
+      loadPublications();
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if(currentPage < totalPages){
+      currentPage++;
+      loadPublications();
+    }
+  });
+
+  // Initialize
+  initFilters().then(() => {
+    loadPublications();
+  });
+</script>
+</body>
+</html>

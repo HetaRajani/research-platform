@@ -1,0 +1,132 @@
+[
+  {
+    "id": "F001",
+    "name": "Dr. Anjali Mehta",
+    "designation": "Professor",
+    "department": "Computer Science & Engineering",
+    "email": "anjali.mehta@university.edu",
+    "orcid": "0000-0002-1825-0097",
+    "photo": "initials",
+    "hIndex": 21,
+    "i10Index": 34,
+    "totalCitations": 2140,
+    "totalPublications": 58,
+    "researchAreas": ["Machine Learning", "Computer Vision", "Data Mining"],
+    "sources": {
+      "googleScholar": { "connected": true, "citations": 2140, "hIndex": 21 },
+      "scopus": { "connected": true, "citations": 1980, "hIndex": 19 },
+      "orcid": { "connected": true, "works": 58 }
+    },
+    "yearWise": [
+      { "year": 2021, "publications": 6, "citations": 240 },
+      { "year": 2022, "publications": 9, "citations": 410 },
+      { "year": 2023, "publications": 11, "citations": 560 },
+      { "year": 2024, "publications": 13, "citations": 610 },
+      { "year": 2025, "publications": 10, "citations": 320 }
+    ]
+  },
+  {
+    "id": "F002",
+    "name": "Dr. Rakesh Sharma",
+    "designation": "Associate Professor",
+    "department": "Information Technology",
+    "email": "rakesh.sharma@university.edu",
+    "orcid": "0000-0001-7373-2645",
+    "photo": "initials",
+    "hIndex": 14,
+    "i10Index": 18,
+    "totalCitations": 980,
+    "totalPublications": 37,
+    "researchAreas": ["Cloud Computing", "Cybersecurity", "IoT"],
+    "sources": {
+      "googleScholar": { "connected": true, "citations": 980, "hIndex": 14 },
+      "scopus": { "connected": true, "citations": 905, "hIndex": 13 },
+      "orcid": { "connected": true, "works": 37 }
+    },
+    "yearWise": [
+      { "year": 2021, "publications": 4, "citations": 90 },
+      { "year": 2022, "publications": 6, "citations": 160 },
+      { "year": 2023, "publications": 8, "citations": 230 },
+      { "year": 2024, "publications": 10, "citations": 290 },
+      { "year": 2025, "publications": 9, "citations": 210 }
+    ]
+  },
+  {
+    "id": "F003",
+    "name": "Dr. Priya Nair",
+    "designation": "Assistant Professor",
+    "department": "Computer Science & Engineering",
+    "email": "priya.nair@university.edu",
+    "orcid": "0000-0003-4521-9981",
+    "photo": "initials",
+    "hIndex": 9,
+    "i10Index": 8,
+    "totalCitations": 410,
+    "totalPublications": 22,
+    "researchAreas": ["Natural Language Processing", "AI Ethics"],
+    "sources": {
+      "googleScholar": { "connected": true, "citations": 410, "hIndex": 9 },
+      "scopus": { "connected": false, "citations": 0, "hIndex": 0 },
+      "orcid": { "connected": true, "works": 22 }
+    },
+    "yearWise": [
+      { "year": 2021, "publications": 2, "citations": 20 },
+      { "year": 2022, "publications": 4, "citations": 60 },
+      { "year": 2023, "publications": 5, "citations": 95 },
+      { "year": 2024, "publications": 6, "citations": 130 },
+      { "year": 2025, "publications": 5, "citations": 105 }
+    ]
+  },
+  {
+    "id": "F004",
+    "name": "Dr. Vikram Desai",
+    "designation": "Professor",
+    "department": "Electronics & Communication",
+    "email": "vikram.desai@university.edu",
+    "orcid": "0000-0002-9034-1123",
+    "photo": "initials",
+    "hIndex": 27,
+    "i10Index": 45,
+    "totalCitations": 3120,
+    "totalPublications": 76,
+    "researchAreas": ["VLSI Design", "Embedded Systems", "Signal Processing"],
+    "sources": {
+      "googleScholar": { "connected": true, "citations": 3120, "hIndex": 27 },
+      "scopus": { "connected": true, "citations": 2890, "hIndex": 25 },
+      "orcid": { "connected": true, "works": 76 }
+    },
+    "yearWise": [
+      { "year": 2021, "publications": 12, "citations": 480 },
+      { "year": 2022, "publications": 14, "citations": 620 },
+      { "year": 2023, "publications": 15, "citations": 710 },
+      { "year": 2024, "publications": 18, "citations": 790 },
+      { "year": 2025, "publications": 17, "citations": 520 }
+    ]
+  },
+  {
+    "id": "F005",
+    "name": "Dr. Sneha Kulkarni",
+    "designation": "Assistant Professor",
+    "department": "Information Technology",
+    "email": "sneha.kulkarni@university.edu",
+    "orcid": "0000-0001-2468-3579",
+    "photo": "initials",
+    "hIndex": 7,
+    "i10Index": 5,
+    "totalCitations": 260,
+    "totalPublications": 16,
+    "researchAreas": ["Data Analytics", "Blockchain"],
+    "sources": {
+      "googleScholar": { "connected": true, "citations": 260, "hIndex": 7 },
+      "scopus": { "connected": true, "citations": 240, "hIndex": 6 },
+      "orcid": { "connected": false, "works": 0 }
+    },
+    "yearWise": [
+      { "year": 2021, "publications": 1, "citations": 8 },
+      { "year": 2022, "publications": 3, "citations": 35 },
+      { "year": 2023, "publications": 4, "citations": 60 },
+      { "year": 2024, "publications": 5, "citations": 90 },
+      { "year": 2025, "publications": 3, "citations": 67 }
+    ]
+  }
+]

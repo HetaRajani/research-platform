@@ -1,0 +1,16 @@
+[
+  { "id": "P001", "facultyId": "F001", "title": "Deep Learning Approaches for Real-Time Object Detection in Low-Resource Settings", "year": 2025, "venue": "IEEE Transactions on Image Processing", "type": "Journal", "citations": 42, "source": "Scopus" },
+  { "id": "P002", "facultyId": "F001", "title": "A Comparative Study of Transformer Architectures for Vision Tasks", "year": 2024, "venue": "CVPR Workshop Proceedings", "type": "Conference", "citations": 61, "source": "Google Scholar" },
+  { "id": "P003", "facultyId": "F001", "title": "Federated Learning for Privacy-Preserving Medical Image Analysis", "year": 2024, "venue": "Elsevier Artificial Intelligence in Medicine", "type": "Journal", "citations": 38, "source": "Scopus" },
+  { "id": "P004", "facultyId": "F001", "title": "Clustering Techniques for Large-Scale Genomic Data Mining", "year": 2023, "venue": "ACM SIGKDD", "type": "Conference", "citations": 55, "source": "Google Scholar" },
+  { "id": "P005", "facultyId": "F002", "title": "Lightweight Encryption Schemes for IoT Edge Devices", "year": 2025, "venue": "Journal of Network and Computer Applications", "type": "Journal", "citations": 19, "source": "Scopus" },
+  { "id": "P006", "facultyId": "F002", "title": "A Survey on Container Security in Multi-Cloud Environments", "year": 2024, "venue": "IEEE Cloud Computing", "type": "Journal", "citations": 27, "source": "Google Scholar" },
+  { "id": "P007", "facultyId": "F002", "title": "Intrusion Detection Using Hybrid Machine Learning Models", "year": 2023, "venue": "International Conference on Cybersecurity", "type": "Conference", "citations": 33, "source": "Scopus" },
+  { "id": "P008", "facultyId": "F003", "title": "Bias Mitigation Techniques in Large Language Models", "year": 2025, "venue": "ACL Findings", "type": "Conference", "citations": 15, "source": "Google Scholar" },
+  { "id": "P009", "facultyId": "F003", "title": "Explainable AI for Ethical Decision Support Systems", "year": 2024, "venue": "AI & Society Journal", "type": "Journal", "citations": 22, "source": "Google Scholar" },
+  { "id": "P010", "facultyId": "F004", "title": "Low-Power VLSI Architectures for Edge AI Accelerators", "year": 2025, "venue": "IEEE Transactions on VLSI Systems", "type": "Journal", "citations": 29, "source": "Scopus" },
+  { "id": "P011", "facultyId": "F004", "title": "Embedded Signal Processing for Autonomous Navigation", "year": 2024, "venue": "IEEE Embedded Systems Letters", "type": "Journal", "citations": 44, "source": "Scopus" },
+  { "id": "P012", "facultyId": "F004", "title": "Design of Fault-Tolerant Digital Circuits Using Redundancy Techniques", "year": 2023, "venue": "VLSID Conference", "type": "Conference", "citations": 51, "source": "Google Scholar" },
+  { "id": "P013", "facultyId": "F005", "title": "Blockchain-Based Framework for Academic Credential Verification", "year": 2025, "venue": "International Journal of Data Analytics", "type": "Journal", "citations": 12, "source": "Google Scholar" },
+  { "id": "P014", "facultyId": "F005", "title": "Predictive Analytics for Student Performance Using Ensemble Models", "year": 2024, "venue": "Data Science Conference India", "type": "Conference", "citations": 18, "source": "Scopus" }
+]

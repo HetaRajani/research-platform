@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Research Analytics Platform</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  if (!AUTH.protectPage()) {
+    // Redirects unauthenticated users immediately
+  }
+</script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">RA</div>
+      <div class="brand-text">
+        <div class="name">Research Analytics</div>
+        <div class="sub">Faculty Profiling</div>
+      </div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-link active" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
+      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
+      <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
+    </nav>
+    <nav class="nav-group">
+      <div class="nav-label">Planned · AI Module</div>
+      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">✦ Collaborator Suggestions</span>
+      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">↗ Productivity Forecast</span>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="progress-label"><span>Sprint 1 progress</span><span>Week 4 / 4</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:78%;"></div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="topbar-title">Overview</div>
+        <div class="topbar-sub">Institutional research snapshot · sample data</div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">🔍 <input type="text" placeholder="Search faculty, papers..."></div>
+        <div class="avatar-chip">
+          <div class="dot" id="userDot">AM</div>
+          <div class="who">
+            <span id="userName">Dr. Anjali Mehta</span>
+            <div class="role" id="userRole">Faculty</div>
+          </div>
+          <button id="logoutBtn" type="button" title="Sign out" style="background:transparent;border:none;border-left:1px solid var(--line);cursor:pointer;color:var(--ink-400);font-size:12px;padding:3px 0 3px 8px;margin-left:4px;font-weight:500;" onmouseover="this.style.color='#b91c1c'" onmouseout="this.style.color='var(--ink-400)'">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <div class="page-head">
+        <span class="eyebrow">Live snapshot</span>
+        <h1 style="font-size:22px;">Institutional research performance</h1>
+        <div class="desc">Aggregated from 5 onboarded faculty profiles across 3 connected sources. This milestone ships the data model, ingestion mock, and the core dashboard views.</div>
+      </div>
+
+      <div class="grid grid-4" style="margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="label">Total faculty tracked</div>
+          <div class="value">5</div>
+          <span class="delta up">↑ 2 this month</span>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total publications</div>
+          <div class="value">209</div>
+          <span class="delta up">↑ 44 vs last year</span>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total citations</div>
+          <div class="value">6,910</div>
+          <span class="delta up">↑ 12.4%</span>
+        </div>
+        <div class="stat-card">
+          <div class="label">Average h-index</div>
+          <div class="value">15.6</div>
+          <span class="delta flat">→ stable</span>
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Year-wise publication & citation trend</h3>
+              <div class="hint">Institution-wide, aggregated across all onboarded faculty</div>
+            </div>
+          </div>
+          <div class="legend-row">
+            <span class="li"><span class="sw" style="background:#1B54A3;"></span> Publications</span>
+            <span class="li"><span class="sw" style="background:#8FBBE8;"></span> Citations (÷10)</span>
+          </div>
+          <div class="chart-box"><div id="trendChart"></div></div>
+        </div>
+
+        <div class="card card-pad">
+          <h3>Data source connections</h3>
+          <div class="hint" style="margin-bottom:14px;">Status of automated pulls per faculty record</div>
+          <div id="sourceStatus" style="display:flex;flex-direction:column;gap:10px;"></div>
+          <div class="footnote" style="margin-top:16px;padding-top:12px;">Sync frequency: manual trigger in this build · scheduled polling planned for Sprint 2.</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Top faculty by citations</h3>
+              <div class="hint">Ranked using combined Google Scholar + Scopus counts</div>
+            </div>
+            <a href="faculty.html" style="font-size:12.5px;">View all →</a>
+          </div>
+          <div style="overflow-x:auto;margin-top:14px;">
+            <table>
+              <thead>
+                <tr><th>Faculty</th><th>Department</th><th>h-index</th><th>Citations</th><th>Publications</th></tr>
+              </thead>
+              <tbody id="topFacultyBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <h3>Sprint 1 build status</h3>
+          <div class="hint" style="margin-bottom:6px;">4-week delivery plan for this review</div>
+          <div id="milestoneList" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <div class="card card-pad">
+        <h3>Department split — publications</h3>
+        <div class="hint" style="margin-bottom:14px;">Volume of indexed publications by department</div>
+        <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap;">
+          <div id="deptDonut"></div>
+          <div id="deptLegend" style="display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+        </div>
+      </div>
+
+      <div class="footnote">
+        Prototype build · all figures shown are sample / mock records used to validate the data model and dashboard UX ahead of live API integration with Google Scholar, Scopus and ORCID.
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/charts.js"></script>
+<script>
+  // ---- Year-wise aggregate trend ----
+  const years = [2021,2022,2023,2024,2025];
+  const pubByYear = years.map(y => FACULTY.reduce((sum,f)=>{
+    const yr = f.yearWise.find(r=>r.year===y);
+    return sum + (yr? yr.publications : 0);
+  },0));
+  const citByYear = years.map(y => FACULTY.reduce((sum,f)=>{
+    const yr = f.yearWise.find(r=>r.year===y);
+    return sum + (yr? yr.citations : 0);
+  },0));
+  const citScaled = citByYear.map(v => Math.round(v/10));
+
+  renderLineChart(document.getElementById('trendChart'), {
+    labels: years.map(String),
+    lines: [
+      { name:'Publications', color:'#1B54A3', data: pubByYear, fill:true },
+      { name:'Citations (÷10)', color:'#8FBBE8', data: citScaled, fill:false }
+    ]
+  }, { height: 230 });
+
+  // ---- Source connection status ----
+  const sourceNames = { googleScholar:'Google Scholar', scopus:'Scopus', orcid:'ORCID' };
+  const sourceBox = document.getElementById('sourceStatus');
+  Object.keys(sourceNames).forEach(key=>{
+    const connectedCount = FACULTY.filter(f=>f.sources[key].connected).length;
+    const row = document.createElement('div');
+    row.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span class="source-chip ${connectedCount>0?'on':'off'}"><span class="led"></span>${sourceNames[key]}</span>
+        <span style="font-size:12px;color:var(--ink-600);">${connectedCount}/${FACULTY.length} linked</span>
+      </div>
+      <div class="progress-track" style="background:#EAF2FB;"><div class="progress-fill" style="width:${(connectedCount/FACULTY.length*100)}%;background:#2E75C4;"></div></div>
+    `;
+    sourceBox.appendChild(row);
+  });
+
+  // ---- Top faculty table ----
+  const topBody = document.getElementById('topFacultyBody');
+  [...FACULTY].sort((a,b)=>b.totalCitations-a.totalCitations).slice(0,5).forEach(f=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><a href="faculty-profile.html?id=${f.id}" style="color:var(--ink-900);font-weight:600;">${f.name}</a></td>
+      <td>${f.department}</td>
+      <td><span class="pill">${f.hIndex}</span></td>
+      <td>${f.totalCitations.toLocaleString()}</td>
+      <td>${f.totalPublications}</td>
+    `;
+    topBody.appendChild(tr);
+  });
+
+  // ---- Milestones ----
+  const milestones = [
+    { t:'Requirement analysis & data model design', d:'Entities for faculty, publications, sources finalized', s:'done' },
+    { t:'UI/UX wireframes — blue & white theme', d:'Login, dashboard, directory, profile, reports', s:'done' },
+    { t:'Dashboard, directory & profile pages built', d:'Static prototype with mock dataset (this build)', s:'done' },
+    { t:'Publications module with filters', d:'Search by year, type, source', s:'done' },
+    { t:'Live Google Scholar / Scopus / ORCID connectors', d:'Scheduled for Sprint 2', s:'todo' },
+    { t:'AI collaborator recommendation & forecasting', d:'Scheduled for Sprint 3', s:'todo' },
+  ];
+  const mList = document.getElementById('milestoneList');
+  milestones.forEach(m=>{
+    const icon = m.s==='done' ? '✓' : (m.s==='progress' ? '…' : '');
+    const badge = m.s==='done' ? 'Done' : (m.s==='progress' ? 'In progress' : 'Planned');
+    const el = document.createElement('div');
+    el.className = 'milestone ' + m.s;
+    el.innerHTML = `
+      <div class="mk">${icon}</div>
+      <div>
+        <div class="mt">${m.t}</div>
+        <div class="md">${m.d}</div>
+      </div>
+      <div class="status"><span class="badge-status ${m.s}">${badge}</span></div>
+    `;
+    mList.appendChild(el);
+  });
+
+  // ---- Department donut ----
+  const deptMap = {};
+  PUBLICATIONS.forEach(p=>{
+    const fac = FACULTY.find(f=>f.id===p.facultyId);
+    deptMap[fac.department] = (deptMap[fac.department]||0) + 1;
+  });
+  const palette = ['#1B54A3','#2E75C4','#8FBBE8','#0E3B70'];
+  const deptSegs = Object.keys(deptMap).map((k,i)=>({ label:k, value:deptMap[k], color:palette[i%palette.length] }));
+  renderDonutChart(document.getElementById('deptDonut'), deptSegs, { centerLabel:'PAPERS' });
+  const legendBox = document.getElementById('deptLegend');
+  deptSegs.forEach(s=>{
+    const row = document.createElement('div');
+    row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px';
+    row.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${s.color};display:inline-block;"></span> ${s.label} <span style="color:var(--ink-400);">(${s.value})</span>`;
+    legendBox.appendChild(row);
+  });
+
+  // Initialize authenticated user profile in topbar
+  AUTH.initUserDisplay();
+</script>
+</body>
+</html>
