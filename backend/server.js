@@ -9,6 +9,7 @@ const facultyRoutes = require('./routes/faculty.routes');
 const publicationRoutes = require('./routes/publication.routes');
 const authRoutes = require('./routes/auth.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const importRoutes = require('./routes/import.routes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -42,7 +43,14 @@ app.get('/', (req, res) => {
       publications: '/api/publications',
       analytics: {
         overview: '/api/analytics/overview',
-        yearly: '/api/analytics/yearly'
+        yearly: '/api/analytics/yearly',
+        departments: '/api/analytics/departments',
+        researchDomains: '/api/analytics/research-domains',
+        collaborations: '/api/analytics/collaborations'
+      },
+      import: {
+        publications: 'POST /api/import/publications',
+        sources: 'GET /api/import/sources'
       }
     }
   });
@@ -54,6 +62,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/faculty', facultyRoutes);
 app.use('/api/publications', publicationRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/import', importRoutes);
 
 // Error Handling Middleware
 app.use(notFound);

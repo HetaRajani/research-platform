@@ -46,7 +46,7 @@
     <header class="topbar">
       <div>
         <div class="topbar-title">Overview</div>
-        <div class="topbar-sub">Institutional research snapshot · sample data</div>
+        <div class="topbar-sub" id="topbarSub">Institutional research snapshot · live MongoDB data</div>
       </div>
       <div class="topbar-right">
         <div class="search-box">🔍 <input type="text" placeholder="Search faculty, papers..."></div>
@@ -66,29 +66,29 @@
       <div class="page-head">
         <span class="eyebrow">Live snapshot</span>
         <h1 style="font-size:22px;">Institutional research performance</h1>
-        <div class="desc">Aggregated from 5 onboarded faculty profiles across 3 connected sources. This milestone ships the data model, ingestion mock, and the core dashboard views.</div>
+        <div class="desc" id="pageHeadDesc">Institutional research performance and analytics aggregated from live MongoDB data.</div>
       </div>
 
       <div class="grid grid-4" style="margin-bottom:20px;">
-        <div class="stat-card">
+        <div class="stat-card" id="cardFaculty">
           <div class="label">Total faculty tracked</div>
-          <div class="value">5</div>
-          <span class="delta up">↑ 2 this month</span>
+          <div class="value" id="statFaculty">—</div>
+          <span class="delta up" id="statFacultyDelta">Live DB</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" id="cardPubs">
           <div class="label">Total publications</div>
-          <div class="value">209</div>
-          <span class="delta up">↑ 44 vs last year</span>
+          <div class="value" id="statPubs">—</div>
+          <span class="delta up" id="statPubsDelta">Live DB</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" id="cardCitations">
           <div class="label">Total citations</div>
-          <div class="value">6,910</div>
-          <span class="delta up">↑ 12.4%</span>
+          <div class="value" id="statCitations">—</div>
+          <span class="delta up" id="statCitationsDelta">Live DB</span>
         </div>
-        <div class="stat-card">
-          <div class="label">Average h-index</div>
-          <div class="value">15.6</div>
-          <span class="delta flat">→ stable</span>
+        <div class="stat-card" id="cardAvgCitations">
+          <div class="label">Average citations / pub</div>
+          <div class="value" id="statAvgCitations">—</div>
+          <span class="delta flat" id="statAvgDelta">Per paper</span>
         </div>
       </div>
 
@@ -141,17 +141,92 @@
         </div>
       </div>
 
-      <div class="card card-pad">
-        <h3>Department split — publications</h3>
-        <div class="hint" style="margin-bottom:14px;">Volume of indexed publications by department</div>
-        <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap;">
-          <div id="deptDonut"></div>
-          <div id="deptLegend" style="display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+      <div class="grid grid-2" style="margin-bottom:20px;">
+        <div class="card card-pad" id="deptSection">
+          <div class="card-head" style="margin-bottom:12px;">
+            <div>
+              <h3>Department analytics</h3>
+              <div class="hint">Volume of indexed publications and citations by department</div>
+            </div>
+          </div>
+          <div id="deptDonutContainer" style="display:flex;align-items:center;gap:26px;flex-wrap:wrap;margin-bottom:16px;">
+            <div id="deptDonut"></div>
+            <div id="deptLegend" style="display:flex;flex-direction:column;gap:8px;font-size:13px;flex:1;min-width:180px;"></div>
+          </div>
+          <div id="deptTableContainer" style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr><th>Department</th><th>Faculty</th><th>Publications</th><th>Citations</th></tr>
+              </thead>
+              <tbody id="deptTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card card-pad" id="domainSection">
+          <div class="card-head" style="margin-bottom:12px;">
+            <div>
+              <h3>Research domain analytics</h3>
+              <div class="hint">Active research domains, publication volume, and faculty</div>
+            </div>
+          </div>
+          <div id="domainChartContainer" style="margin-bottom:16px;">
+            <div id="domainChart"></div>
+          </div>
+          <div id="domainTableContainer" style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr><th>Research Domain</th><th>Publications</th><th>Citations</th><th>Faculty</th></tr>
+              </thead>
+              <tbody id="domainTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 9B: Collaboration Network Visualization -->
+      <div class="card card-pad" id="collabSection" style="margin-bottom:20px;">
+        <div class="card-head" style="margin-bottom:14px;padding:0;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+          <div>
+            <h3>Faculty collaboration network</h3>
+            <div class="hint">Co-authorship network dynamically mapped from indexed publications</div>
+          </div>
+          <div id="collabMeta" style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-400);"></div>
+        </div>
+
+        <div class="grid grid-2" style="margin-top:6px;gap:16px;">
+          <!-- Network Canvas Box -->
+          <div style="position:relative;background:#FAFCFF;border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;min-height:380px;">
+            <div id="collabNetworkContainer" style="width:100%;height:100%;min-height:380px;"></div>
+            <!-- Floating interactive tooltip -->
+            <div id="collabTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(18,35,63,0.95);color:#fff;padding:10px 14px;border-radius:8px;font-size:12px;box-shadow:0 6px 18px rgba(14,59,112,0.24);z-index:30;line-height:1.45;border:1px solid rgba(255,255,255,0.18);backdrop-filter:blur(6px);transition:opacity 0.15s ease;"></div>
+          </div>
+
+          <!-- Collaboration Details Panel -->
+          <div id="collabDetailsCard" style="background:var(--blue-050);border:1px solid var(--line);border-radius:var(--radius-md);padding:16px;display:flex;flex-direction:column;justify-content:space-between;min-height:380px;">
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line);">
+                <span style="font-weight:700;color:var(--blue-900);font-size:12.5px;text-transform:uppercase;letter-spacing:0.5px;">Collaboration Details</span>
+                <span id="collabStatusBadge" class="pill" style="font-size:10.5px;background:var(--blue-100);color:var(--blue-700);">Interactive</span>
+              </div>
+              <div id="collabDetailsBody">
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:240px;color:var(--ink-400);text-align:center;padding:10px;">
+                  <div style="font-size:28px;margin-bottom:8px;">🤝</div>
+                  <div style="font-weight:600;color:var(--ink-600);margin-bottom:4px;">Select a collaboration</div>
+                  <div style="font-size:12px;line-height:1.4;max-width:210px;">Hover or click on any collaboration link or node in the network to inspect details.</div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-400);display:flex;justify-content:space-between;align-items:center;">
+              <span>Nodes: Faculty · Edges: Co-authorship</span>
+              <span id="collabTotalCount" style="font-weight:600;color:var(--blue-700);"></span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="footnote">
-        Prototype build · all figures shown are sample / mock records used to validate the data model and dashboard UX ahead of live API integration with Google Scholar, Scopus and ORCID.
+        Research Analytics Platform · Powered by MongoDB Atlas live data models and analytics endpoints.
       </div>
     </main>
   </div>
@@ -160,101 +235,604 @@
 <script src="js/data.js"></script>
 <script src="js/charts.js"></script>
 <script>
-  // ---- Year-wise aggregate trend ----
-  const years = [2021,2022,2023,2024,2025];
-  const pubByYear = years.map(y => FACULTY.reduce((sum,f)=>{
-    const yr = f.yearWise.find(r=>r.year===y);
-    return sum + (yr? yr.publications : 0);
-  },0));
-  const citByYear = years.map(y => FACULTY.reduce((sum,f)=>{
-    const yr = f.yearWise.find(r=>r.year===y);
-    return sum + (yr? yr.citations : 0);
-  },0));
-  const citScaled = citByYear.map(v => Math.round(v/10));
+  function getApiHeaders() {
+    const token = (window.AUTH && window.AUTH.getToken) ? window.AUTH.getToken() : null;
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  }
 
-  renderLineChart(document.getElementById('trendChart'), {
-    labels: years.map(String),
-    lines: [
-      { name:'Publications', color:'#1B54A3', data: pubByYear, fill:true },
-      { name:'Citations (÷10)', color:'#8FBBE8', data: citScaled, fill:false }
-    ]
-  }, { height: 230 });
+  function getApiUrl(path) {
+    if (window.AUTH && window.AUTH.getApiUrl) {
+      return window.AUTH.getApiUrl(path);
+    }
+    const base = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) || 'http://localhost:5000/api';
+    return base + (path.startsWith('/') ? path : '/' + path);
+  }
 
-  // ---- Source connection status ----
-  const sourceNames = { googleScholar:'Google Scholar', scopus:'Scopus', orcid:'ORCID' };
-  const sourceBox = document.getElementById('sourceStatus');
-  Object.keys(sourceNames).forEach(key=>{
-    const connectedCount = FACULTY.filter(f=>f.sources[key].connected).length;
-    const row = document.createElement('div');
-    row.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <span class="source-chip ${connectedCount>0?'on':'off'}"><span class="led"></span>${sourceNames[key]}</span>
-        <span style="font-size:12px;color:var(--ink-600);">${connectedCount}/${FACULTY.length} linked</span>
-      </div>
-      <div class="progress-track" style="background:#EAF2FB;"><div class="progress-fill" style="width:${(connectedCount/FACULTY.length*100)}%;background:#2E75C4;"></div></div>
-    `;
-    sourceBox.appendChild(row);
-  });
+  // ---- 1. Overview Analytics (Summary Cards) ----
+  async function loadOverview() {
+    const elFaculty = document.getElementById('statFaculty');
+    const elPubs = document.getElementById('statPubs');
+    const elCitations = document.getElementById('statCitations');
+    const elAvg = document.getElementById('statAvgCitations');
 
-  // ---- Top faculty table ----
-  const topBody = document.getElementById('topFacultyBody');
-  [...FACULTY].sort((a,b)=>b.totalCitations-a.totalCitations).slice(0,5).forEach(f=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><a href="faculty-profile.html?id=${f.id}" style="color:var(--ink-900);font-weight:600;">${f.name}</a></td>
-      <td>${f.department}</td>
-      <td><span class="pill">${f.hIndex}</span></td>
-      <td>${f.totalCitations.toLocaleString()}</td>
-      <td>${f.totalPublications}</td>
-    `;
-    topBody.appendChild(tr);
-  });
+    try {
+      const res = await fetch(getApiUrl('/analytics/overview'), { headers: getApiHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success || !json.data) throw new Error(json.message || 'Invalid overview response');
 
-  // ---- Milestones ----
+      const d = json.data;
+      if (elFaculty) elFaculty.textContent = (d.totalFaculty ?? 0).toLocaleString();
+      if (elPubs) elPubs.textContent = (d.totalPublications ?? 0).toLocaleString();
+      if (elCitations) elCitations.textContent = (d.totalCitations ?? 0).toLocaleString();
+      if (elAvg) {
+        const avg = d.averageCitations ?? (d.totalPublications > 0 ? (d.totalCitations / d.totalPublications) : 0);
+        elAvg.textContent = typeof avg === 'number' ? avg.toFixed(1) : avg;
+      }
+    } catch (err) {
+      console.error('Error loading overview analytics:', err);
+      if (elFaculty) elFaculty.innerHTML = '<span style="font-size:16px;color:#b91c1c;" title="Error loading data">⚠️ Err</span>';
+      if (elPubs) elPubs.innerHTML = '<span style="font-size:16px;color:#b91c1c;" title="Error loading data">⚠️ Err</span>';
+      if (elCitations) elCitations.innerHTML = '<span style="font-size:16px;color:#b91c1c;" title="Error loading data">⚠️ Err</span>';
+      if (elAvg) elAvg.innerHTML = '<span style="font-size:16px;color:#b91c1c;" title="Error loading data">⚠️ Err</span>';
+    }
+  }
+
+  // ---- 2. Yearly Analytics (Trend Chart) ----
+  async function loadYearlyTrends() {
+    const trendBox = document.getElementById('trendChart');
+    if (!trendBox) return;
+
+    trendBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--ink-400);font-size:13px;">Loading yearly trends...</div>';
+
+    try {
+      const res = await fetch(getApiUrl('/analytics/yearly'), { headers: getApiHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) throw new Error(json.message || 'Invalid yearly response');
+
+      const data = json.data;
+      if (data.length === 0) {
+        trendBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--ink-400);font-size:13px;">No yearly trend data recorded yet</div>';
+        return;
+      }
+
+      const sorted = [...data].sort((a, b) => (Number(a.year) || 0) - (Number(b.year) || 0));
+      const years = sorted.map(d => String(d.year));
+      const pubByYear = sorted.map(d => Number(d.publications) || 0);
+      const citByYear = sorted.map(d => Number(d.citations) || 0);
+      const citScaled = citByYear.map(v => Math.round(v / 10));
+
+      renderLineChart(trendBox, {
+        labels: years,
+        lines: [
+          { name: 'Publications', color: '#1B54A3', data: pubByYear, fill: true },
+          { name: 'Citations (÷10)', color: '#8FBBE8', data: citScaled, fill: false }
+        ]
+      }, { height: 230 });
+    } catch (err) {
+      console.error('Error loading yearly trends:', err);
+      trendBox.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:220px;color:#b91c1c;font-size:13px;text-align:center;">
+          <span>⚠️ Failed to load yearly trends</span>
+          <button onclick="loadYearlyTrends()" style="margin-top:8px;padding:4px 12px;background:var(--blue-700);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;">Retry</button>
+        </div>
+      `;
+    }
+  }
+
+  // ---- 3. Department Analytics (Donut & Table) ----
+  async function loadDepartmentAnalytics() {
+    const donutBox = document.getElementById('deptDonut');
+    const legendBox = document.getElementById('deptLegend');
+    const tableBody = document.getElementById('deptTableBody');
+    const donutContainer = document.getElementById('deptDonutContainer');
+
+    if (donutBox) donutBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:168px;color:var(--ink-400);font-size:12px;">Loading...</div>';
+    if (legendBox) legendBox.innerHTML = '';
+    if (tableBody) tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:12px;color:var(--ink-400);">Loading departments...</td></tr>';
+
+    try {
+      const res = await fetch(getApiUrl('/analytics/departments'), { headers: getApiHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) throw new Error(json.message || 'Invalid department response');
+
+      const data = json.data;
+      if (data.length === 0) {
+        if (donutContainer) donutContainer.innerHTML = '<div style="width:100%;text-align:center;padding:24px 0;color:var(--ink-400);font-size:13px;">No department data available</div>';
+        if (tableBody) tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--ink-400);">No department records found.</td></tr>';
+        return;
+      }
+
+      const palette = ['#1B54A3', '#2E75C4', '#8FBBE8', '#0E3B70', '#4C84C4', '#5E9AE0'];
+      const deptSegs = data.map((d, i) => ({
+        label: d.department,
+        value: Number(d.publicationCount) || 0,
+        color: palette[i % palette.length]
+      }));
+
+      renderDonutChart(donutBox, deptSegs, { centerLabel: 'PAPERS' });
+
+      if (legendBox) {
+        legendBox.innerHTML = '';
+        deptSegs.forEach(s => {
+          const row = document.createElement('div');
+          row.style.display = 'flex';
+          row.style.alignItems = 'center';
+          row.style.gap = '8px';
+          row.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${s.color};display:inline-block;flex-shrink:0;"></span> <span style="flex:1;">${s.label}</span> <span style="color:var(--ink-400);font-weight:600;">(${s.value})</span>`;
+          legendBox.appendChild(row);
+        });
+      }
+
+      if (tableBody) {
+        tableBody.innerHTML = '';
+        data.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="font-weight:500;">${d.department}</td>
+            <td><span class="pill">${d.facultyCount || 0}</span></td>
+            <td>${d.publicationCount || 0}</td>
+            <td>${(d.citationCount || 0).toLocaleString()}</td>
+          `;
+          tableBody.appendChild(tr);
+        });
+      }
+    } catch (err) {
+      console.error('Error loading department analytics:', err);
+      if (donutContainer) {
+        donutContainer.innerHTML = `
+          <div style="width:100%;text-align:center;padding:20px;color:#b91c1c;font-size:13px;">
+            ⚠️ Failed to load department data
+            <br>
+            <button onclick="loadDepartmentAnalytics()" style="margin-top:8px;padding:3px 10px;background:var(--blue-700);color:#fff;border:none;border-radius:var(--radius-sm);font-size:11.5px;cursor:pointer;">Retry</button>
+          </div>
+        `;
+      }
+      if (tableBody) {
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:12px;color:#b91c1c;">Failed to load department table.</td></tr>';
+      }
+    }
+  }
+
+  // ---- 4. Research Domain Analytics (Bar Chart & Table) ----
+  async function loadResearchDomainAnalytics() {
+    const chartBox = document.getElementById('domainChart');
+    const tableBody = document.getElementById('domainTableBody');
+
+    if (chartBox) chartBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:var(--ink-400);font-size:12px;">Loading domains...</div>';
+    if (tableBody) tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:12px;color:var(--ink-400);">Loading research domains...</td></tr>';
+
+    try {
+      const res = await fetch(getApiUrl('/analytics/research-domains'), { headers: getApiHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) throw new Error(json.message || 'Invalid research domain response');
+
+      const data = json.data;
+      if (data.length === 0) {
+        if (chartBox) chartBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:var(--ink-400);font-size:13px;">No research domains recorded yet</div>';
+        if (tableBody) tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--ink-400);">No research domain records found.</td></tr>';
+        return;
+      }
+
+      const labels = data.map(d => d.domain);
+      const values = data.map(d => Number(d.publicationCount) || 0);
+
+      renderBarChart(chartBox, labels, values, { height: 180, color: '#1B54A3' });
+
+      if (tableBody) {
+        tableBody.innerHTML = '';
+        data.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="font-weight:500;">${d.domain}</td>
+            <td><span class="pill">${d.publicationCount || 0}</span></td>
+            <td>${(d.citationCount || 0).toLocaleString()}</td>
+            <td>${d.facultyCount || 0}</td>
+          `;
+          tableBody.appendChild(tr);
+        });
+      }
+    } catch (err) {
+      console.error('Error loading research domain analytics:', err);
+      if (chartBox) {
+        chartBox.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:180px;color:#b91c1c;font-size:13px;text-align:center;">
+            <span>⚠️ Failed to load research domains</span>
+            <button onclick="loadResearchDomainAnalytics()" style="margin-top:8px;padding:4px 12px;background:var(--blue-700);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;">Retry</button>
+          </div>
+        `;
+      }
+      if (tableBody) {
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:12px;color:#b91c1c;">Failed to load research domains table.</td></tr>';
+      }
+    }
+  }
+
+  // ---- 5. Top Faculty & Source Status ----
+  async function loadTopFacultyAndSources() {
+    const topBody = document.getElementById('topFacultyBody');
+    const sourceBox = document.getElementById('sourceStatus');
+
+    try {
+      const res = await fetch(getApiUrl('/faculty'), { headers: getApiHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const facultyList = json.data;
+
+          if (topBody) {
+            topBody.innerHTML = '';
+            const sorted = [...facultyList].sort((a, b) => (Number(b.citationCount) || 0) - (Number(a.citationCount) || 0)).slice(0, 5);
+            sorted.forEach(f => {
+              const tr = document.createElement('tr');
+              const targetId = f.facultyCode || f._id;
+              tr.innerHTML = `
+                <td><a href="faculty-profile.html?id=${encodeURIComponent(targetId)}" style="color:var(--ink-900);font-weight:600;">${f.name}</a></td>
+                <td>${f.department || '—'}</td>
+                <td><span class="pill">${f.hIndex || 0}</span></td>
+                <td>${(f.citationCount || 0).toLocaleString()}</td>
+                <td>${f.publicationCount || 0}</td>
+              `;
+              topBody.appendChild(tr);
+            });
+          }
+
+          if (sourceBox) {
+            const sourceNames = {
+              googleScholar: { label: 'Google Scholar', check: f => Boolean(f.googleScholarId || (f.sources && f.sources.googleScholar && f.sources.googleScholar.connected)) },
+              scopus: { label: 'Scopus', check: f => Boolean(f.scopusId || (f.sources && f.sources.scopus && f.sources.scopus.connected)) },
+              orcid: { label: 'ORCID', check: f => Boolean(f.orcidId || (f.sources && f.sources.orcid && f.sources.orcid.connected)) }
+            };
+            sourceBox.innerHTML = '';
+            Object.keys(sourceNames).forEach(key => {
+              const cfg = sourceNames[key];
+              const connectedCount = facultyList.filter(cfg.check).length;
+              const pct = facultyList.length > 0 ? Math.round((connectedCount / facultyList.length) * 100) : 0;
+              const row = document.createElement('div');
+              row.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                  <span class="source-chip ${connectedCount > 0 ? 'on' : 'off'}"><span class="led"></span>${cfg.label}</span>
+                  <span style="font-size:12px;color:var(--ink-600);">${connectedCount}/${facultyList.length} linked</span>
+                </div>
+                <div class="progress-track" style="background:#EAF2FB;"><div class="progress-fill" style="width:${pct}%;background:#2E75C4;"></div></div>
+              `;
+              sourceBox.appendChild(row);
+            });
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Falling back to local data for top faculty/sources:', e);
+    }
+
+    // Fallback if API fails
+    if (topBody && typeof FACULTY !== 'undefined') {
+      topBody.innerHTML = '';
+      [...FACULTY].sort((a,b)=>b.totalCitations-a.totalCitations).slice(0,5).forEach(f=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><a href="faculty-profile.html?id=${f.id}" style="color:var(--ink-900);font-weight:600;">${f.name}</a></td>
+          <td>${f.department}</td>
+          <td><span class="pill">${f.hIndex}</span></td>
+          <td>${f.totalCitations.toLocaleString()}</td>
+          <td>${f.totalPublications}</td>
+        `;
+        topBody.appendChild(tr);
+      });
+    }
+  }
+
+  // ---- 6. Milestone List ----
   const milestones = [
     { t:'Requirement analysis & data model design', d:'Entities for faculty, publications, sources finalized', s:'done' },
     { t:'UI/UX wireframes — blue & white theme', d:'Login, dashboard, directory, profile, reports', s:'done' },
-    { t:'Dashboard, directory & profile pages built', d:'Static prototype with mock dataset (this build)', s:'done' },
-    { t:'Publications module with filters', d:'Search by year, type, source', s:'done' },
+    { t:'Dashboard, directory & profile pages built', d:'Interactive views with live MongoDB Atlas data', s:'done' },
+    { t:'Analytics APIs & Research Domain Metrics', d:'Overview, yearly trends, departments, and research domains', s:'done' },
     { t:'Live Google Scholar / Scopus / ORCID connectors', d:'Scheduled for Sprint 2', s:'todo' },
     { t:'AI collaborator recommendation & forecasting', d:'Scheduled for Sprint 3', s:'todo' },
   ];
   const mList = document.getElementById('milestoneList');
-  milestones.forEach(m=>{
-    const icon = m.s==='done' ? '✓' : (m.s==='progress' ? '…' : '');
-    const badge = m.s==='done' ? 'Done' : (m.s==='progress' ? 'In progress' : 'Planned');
-    const el = document.createElement('div');
-    el.className = 'milestone ' + m.s;
-    el.innerHTML = `
-      <div class="mk">${icon}</div>
-      <div>
-        <div class="mt">${m.t}</div>
-        <div class="md">${m.d}</div>
-      </div>
-      <div class="status"><span class="badge-status ${m.s}">${badge}</span></div>
-    `;
-    mList.appendChild(el);
-  });
+  if (mList) {
+    milestones.forEach(m=>{
+      const icon = m.s==='done' ? '✓' : (m.s==='progress' ? '…' : '');
+      const badge = m.s==='done' ? 'Done' : (m.s==='progress' ? 'In progress' : 'Planned');
+      const el = document.createElement('div');
+      el.className = 'milestone ' + m.s;
+      el.innerHTML = `
+        <div class="mk">${icon}</div>
+        <div>
+          <div class="mt">${m.t}</div>
+          <div class="md">${m.d}</div>
+        </div>
+        <div class="status"><span class="badge-status ${m.s}">${badge}</span></div>
+      `;
+      mList.appendChild(el);
+    });
+  }
 
-  // ---- Department donut ----
-  const deptMap = {};
-  PUBLICATIONS.forEach(p=>{
-    const fac = FACULTY.find(f=>f.id===p.facultyId);
-    deptMap[fac.department] = (deptMap[fac.department]||0) + 1;
-  });
-  const palette = ['#1B54A3','#2E75C4','#8FBBE8','#0E3B70'];
-  const deptSegs = Object.keys(deptMap).map((k,i)=>({ label:k, value:deptMap[k], color:palette[i%palette.length] }));
-  renderDonutChart(document.getElementById('deptDonut'), deptSegs, { centerLabel:'PAPERS' });
-  const legendBox = document.getElementById('deptLegend');
-  deptSegs.forEach(s=>{
-    const row = document.createElement('div');
-    row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px';
-    row.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${s.color};display:inline-block;"></span> ${s.label} <span style="color:var(--ink-400);">(${s.value})</span>`;
-    legendBox.appendChild(row);
-  });
+  // ---- 7. Collaboration Network Analytics (Phase 9B) ----
+  let currentCollaborationsData = [];
+  let selectedCollaborationItem = null;
+
+  async function loadCollaborationNetwork() {
+    const networkBox = document.getElementById('collabNetworkContainer');
+    const detailsBody = document.getElementById('collabDetailsBody');
+    const metaBox = document.getElementById('collabMeta');
+    const badge = document.getElementById('collabStatusBadge');
+    const totalCountEl = document.getElementById('collabTotalCount');
+
+    if (networkBox) {
+      networkBox.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;color:var(--ink-400);font-size:13px;text-align:center;">
+          <span style="font-size:28px;margin-bottom:8px;">⏳</span>
+          <span style="font-weight:600;color:var(--ink-600);">Loading collaboration network from API...</span>
+          <span style="font-size:12px;margin-top:2px;">Fetching co-authorship relationships</span>
+        </div>
+      `;
+    }
+    if (detailsBody) {
+      detailsBody.innerHTML = `
+        <div style="text-align:center;padding:36px 12px;color:var(--ink-400);font-size:12.5px;">
+          Loading details...
+        </div>
+      `;
+    }
+
+    try {
+      const res = await fetch(getApiUrl('/analytics/collaborations'), { headers: getApiHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) throw new Error(json.message || 'Invalid collaborations response');
+
+      const data = json.data;
+      currentCollaborationsData = data;
+
+      if (data.length === 0) {
+        if (networkBox) {
+          renderCollaborationNetwork(networkBox, []);
+        }
+        if (metaBox) metaBox.innerHTML = '<span>0 collaborations</span>';
+        if (totalCountEl) totalCountEl.textContent = '0 links';
+        if (detailsBody) {
+          detailsBody.innerHTML = `
+            <div style="text-align:center;padding:36px 12px;color:var(--ink-400);font-size:12.5px;">
+              No collaboration records available to inspect.
+            </div>
+          `;
+        }
+        return;
+      }
+
+      // Unique faculty nodes count
+      const facultySet = new Set();
+      data.forEach(c => {
+        if (c.faculty1) facultySet.add(c.faculty1);
+        if (c.faculty2) facultySet.add(c.faculty2);
+      });
+
+      if (metaBox) {
+        metaBox.innerHTML = `
+          <span class="pill" style="font-size:11px;background:var(--blue-100);color:var(--blue-700);font-weight:600;">${facultySet.size} Faculty ${facultySet.size === 1 ? 'Node' : 'Nodes'}</span>
+          <span class="pill" style="font-size:11px;background:#E7F6EE;color:var(--good);font-weight:600;">${data.length} Collaboration ${data.length === 1 ? 'Edge' : 'Edges'}</span>
+        `;
+      }
+      if (totalCountEl) {
+        totalCountEl.textContent = `${data.length} ${data.length === 1 ? 'collaboration' : 'collaborations'}`;
+      }
+
+      // Render details in the sidebar panel
+      const renderDetailsContent = (collab, isLocked = false) => {
+        if (!detailsBody) return;
+        if (badge) {
+          badge.textContent = isLocked ? 'Selected' : 'Hovered';
+          badge.style.background = isLocked ? 'var(--blue-700)' : 'var(--blue-100)';
+          badge.style.color = isLocked ? '#fff' : 'var(--blue-700)';
+        }
+
+        const getInitials = (name) => {
+          const c = (name || '').replace(/^Dr\.\s*/i, '').trim();
+          const p = c.split(/\s+/);
+          return p.length === 1 ? p[0].substring(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
+        };
+
+        const maxP = Math.max(...data.map(d => Number(d.publicationCount) || 1), 1);
+        const pubCount = Number(collab.publicationCount) || 1;
+        const strengthPct = Math.round((pubCount / maxP) * 100);
+
+        detailsBody.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <!-- Faculty 1 -->
+            <div style="display:flex;align-items:center;gap:10px;background:#fff;padding:10px 12px;border-radius:8px;border:1px solid var(--line);">
+              <div style="width:34px;height:34px;border-radius:50%;background:var(--blue-700);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;">
+                ${getInitials(collab.faculty1Name)}
+              </div>
+              <div style="overflow:hidden;flex:1;">
+                <div style="font-size:10.5px;color:var(--ink-400);text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">Faculty 1</div>
+                <div style="font-weight:600;color:var(--ink-900);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${collab.faculty1 ? `<a href="faculty-profile.html?id=${encodeURIComponent(collab.faculty1)}" style="color:var(--ink-900);">${collab.faculty1Name}</a>` : collab.faculty1Name}
+                </div>
+              </div>
+            </div>
+
+            <!-- Connector badge -->
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:2px 0;">
+              <div style="flex:1;height:1px;background:var(--line);"></div>
+              <span class="pill" style="background:#EAF2FB;color:var(--blue-700);font-weight:700;font-size:11.5px;padding:3px 10px;">
+                ${pubCount} ${pubCount === 1 ? 'shared publication' : 'shared publications'}
+              </span>
+              <div style="flex:1;height:1px;background:var(--line);"></div>
+            </div>
+
+            <!-- Faculty 2 -->
+            <div style="display:flex;align-items:center;gap:10px;background:#fff;padding:10px 12px;border-radius:8px;border:1px solid var(--line);">
+              <div style="width:34px;height:34px;border-radius:50%;background:var(--blue-500);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;">
+                ${getInitials(collab.faculty2Name)}
+              </div>
+              <div style="overflow:hidden;flex:1;">
+                <div style="font-size:10.5px;color:var(--ink-400);text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">Faculty 2</div>
+                <div style="font-weight:600;color:var(--ink-900);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${collab.faculty2 ? `<a href="faculty-profile.html?id=${encodeURIComponent(collab.faculty2)}" style="color:var(--ink-900);">${collab.faculty2Name}</a>` : collab.faculty2Name}
+                </div>
+              </div>
+            </div>
+
+            <!-- Strength Meter -->
+            <div style="background:#fff;padding:10px 12px;border-radius:8px;border:1px solid var(--line);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11.5px;">
+                <span style="color:var(--ink-600);font-weight:500;">Collaboration Strength</span>
+                <span style="font-weight:700;color:var(--blue-700);">${pubCount} ${pubCount === 1 ? 'Paper' : 'Papers'}</span>
+              </div>
+              <div class="progress-track" style="background:#EAF2FB;height:6px;border-radius:3px;">
+                <div class="progress-fill" style="width:${strengthPct}%;background:var(--blue-700);height:100%;border-radius:3px;"></div>
+              </div>
+            </div>
+
+            ${isLocked ? `
+              <button onclick="resetCollabSelection()" style="align-self:flex-start;padding:4px 10px;background:transparent;border:1px solid var(--line);border-radius:6px;font-size:11.5px;color:var(--ink-600);cursor:pointer;margin-top:2px;" onmouseover="this.style.borderColor='var(--blue-500)'" onmouseout="this.style.borderColor='var(--line)'">
+                ✕ Clear selection
+              </button>
+            ` : ''}
+          </div>
+        `;
+      };
+
+      const resetDetailsPlaceholder = () => {
+        if (!detailsBody) return;
+        if (badge) {
+          badge.textContent = 'Interactive';
+          badge.style.background = 'var(--blue-100)';
+          badge.style.color = 'var(--blue-700)';
+        }
+        detailsBody.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:240px;color:var(--ink-400);text-align:center;padding:10px;">
+            <div style="font-size:28px;margin-bottom:8px;">🤝</div>
+            <div style="font-weight:600;color:var(--ink-600);margin-bottom:4px;">Select a collaboration</div>
+            <div style="font-size:12px;line-height:1.4;max-width:210px;">Hover or click on any collaboration link or node in the network to inspect details.</div>
+          </div>
+        `;
+      };
+
+      window.resetCollabSelection = () => {
+        selectedCollaborationItem = null;
+        resetDetailsPlaceholder();
+        renderCollaborationNetwork(networkBox, currentCollaborationsData, networkOpts);
+      };
+
+      const tooltip = document.getElementById('collabTooltip');
+
+      const networkOpts = {
+        height: 380,
+        onHoverCollaboration: (collab, evt, midPos) => {
+          if (tooltip) {
+            const count = Number(collab.publicationCount) || 1;
+            tooltip.innerHTML = `
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#8FBBE8;margin-bottom:3px;">Co-authorship</div>
+              <div style="font-weight:700;font-size:13px;color:#ffffff;line-height:1.25;margin-bottom:3px;">
+                ${collab.faculty1Name} ↔ ${collab.faculty2Name}
+              </div>
+              <div style="font-size:12px;color:#DCE6F2;margin-top:2px;">
+                <strong>${count}</strong> ${count === 1 ? 'shared publication' : 'shared publications'}
+              </div>
+            `;
+            tooltip.style.display = 'block';
+
+            if (evt && evt.clientX && evt.clientY) {
+              const rect = networkBox.getBoundingClientRect();
+              const left = Math.min(Math.max(evt.clientX - rect.left + 14, 10), rect.width - 240);
+              const top = Math.min(Math.max(evt.clientY - rect.top - 20, 10), rect.height - 85);
+              tooltip.style.left = `${left}px`;
+              tooltip.style.top = `${top}px`;
+            } else if (midPos) {
+              tooltip.style.left = `${midPos.mx}px`;
+              tooltip.style.top = `${midPos.my - 45}px`;
+            }
+          }
+
+          if (!selectedCollaborationItem) {
+            renderDetailsContent(collab, false);
+          }
+        },
+        onLeaveCollaboration: () => {
+          if (tooltip) tooltip.style.display = 'none';
+          if (!selectedCollaborationItem) {
+            resetDetailsPlaceholder();
+          }
+        },
+        onSelectCollaboration: (collab) => {
+          selectedCollaborationItem = collab;
+          renderDetailsContent(collab, true);
+        },
+        onHoverNode: (node, evt) => {
+          if (tooltip) {
+            tooltip.innerHTML = `
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#8FBBE8;margin-bottom:3px;">Faculty Node</div>
+              <div style="font-weight:700;font-size:13px;color:#ffffff;line-height:1.25;">${node.name}</div>
+              <div style="font-size:11.5px;color:#DCE6F2;margin-top:3px;">${node.collaborationsCount || 1} active ${node.collaborationsCount === 1 ? 'collaboration' : 'collaborations'} (${node.sharedPapersCount || 1} ${node.sharedPapersCount === 1 ? 'paper' : 'papers'})</div>
+            `;
+            tooltip.style.display = 'block';
+            if (evt && evt.clientX && evt.clientY) {
+              const rect = networkBox.getBoundingClientRect();
+              const left = Math.min(Math.max(evt.clientX - rect.left + 14, 10), rect.width - 220);
+              const top = Math.min(Math.max(evt.clientY - rect.top - 20, 10), rect.height - 75);
+              tooltip.style.left = `${left}px`;
+              tooltip.style.top = `${top}px`;
+            }
+          }
+        },
+        onLeaveNode: () => {
+          if (tooltip) tooltip.style.display = 'none';
+        },
+        onSelectNode: (node) => {
+          const matched = data.find(c => c.faculty1 === node.id || c.faculty2 === node.id);
+          if (matched) {
+            selectedCollaborationItem = matched;
+            renderDetailsContent(matched, true);
+          }
+        }
+      };
+
+      renderCollaborationNetwork(networkBox, data, networkOpts);
+      resetDetailsPlaceholder();
+
+    } catch (err) {
+      console.error('Error loading collaboration network:', err);
+      if (networkBox) {
+        networkBox.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;color:#b91c1c;font-size:13px;text-align:center;padding:20px;">
+            <span style="font-size:24px;margin-bottom:6px;">⚠️</span>
+            <span>Failed to load collaboration network data</span>
+            <span style="font-size:11.5px;color:var(--ink-400);margin-top:4px;">${err.message || 'Network or server error'}</span>
+            <button onclick="loadCollaborationNetwork()" style="margin-top:12px;padding:5px 14px;background:var(--blue-700);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;">Retry</button>
+          </div>
+        `;
+      }
+      if (detailsBody) {
+        detailsBody.innerHTML = `
+          <div style="text-align:center;padding:28px 12px;color:#b91c1c;font-size:12px;">
+            Unable to load collaboration details due to API error.
+          </div>
+        `;
+      }
+    }
+  }
 
   // Initialize authenticated user profile in topbar
   AUTH.initUserDisplay();
+
+  // Load all analytics data
+  loadOverview();
+  loadYearlyTrends();
+  loadDepartmentAnalytics();
+  loadResearchDomainAnalytics();
+  loadTopFacultyAndSources();
+  loadCollaborationNetwork();
 </script>
 </body>
 </html>
