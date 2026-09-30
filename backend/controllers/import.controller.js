@@ -9,12 +9,27 @@ const importPublications = async (req, res, next) => {
   try {
     const result = await importService.importPublications(req.body);
 
-    res.status(201).json({
+    const statusCode = result.count > 0 ? 201 : 200;
+
+    let message;
+    if (result.count > 0 && result.duplicatesDetected && result.duplicatesDetected.length > 0) {
+      message = `Successfully imported ${result.count} publication${result.count === 1 ? '' : 's'} (${result.duplicatesDetected.length} potential duplicate${result.duplicatesDetected.length === 1 ? '' : 's'} skipped)`;
+    } else if (result.count > 0) {
+      message = `Successfully imported ${result.count} publication${result.count === 1 ? '' : 's'} from ${result.source}`;
+    } else if (result.duplicatesDetected && result.duplicatesDetected.length > 0) {
+      message = `Import completed: 0 new publications created, ${result.duplicatesDetected.length} potential duplicate${result.duplicatesDetected.length === 1 ? '' : 's'} identified`;
+    } else {
+      message = `Processed 0 publications from ${result.source}`;
+    }
+
+    res.status(statusCode).json({
       success: true,
-      message: `Successfully imported ${result.count} publication${result.count === 1 ? '' : 's'} from ${result.source}`,
+      message,
       count: result.count,
       source: result.source,
-      data: result.publications
+      data: result.publications,
+      duplicates: result.duplicatesDetected || [],
+      summary: result.summary
     });
   } catch (error) {
     if (error.status === 400 || error.validationErrors) {

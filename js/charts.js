@@ -179,17 +179,15 @@ function renderDonutChart(container, segments, opts={}){
 
 /* ---- Collaboration Network Graph ---- */
 function renderCollaborationNetwork(container, collaborations, opts = {}) {
-  const w = opts.width || Math.max(container.clientWidth || 0, 520);
-  const h = opts.height || 380;
+  const w = opts.width || container.clientWidth || 720;
+  const h = opts.height || 360;
 
   if (!collaborations || !Array.isArray(collaborations) || collaborations.length === 0) {
     container.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:${h}px;color:var(--ink-400);font-size:13.5px;text-align:center;padding:24px;">
-        <span style="font-size:32px;margin-bottom:8px;">👥</span>
-        <span style="font-weight:600;color:var(--ink-900);font-size:14.5px;">No collaborations recorded yet</span>
-        <span style="font-size:12.5px;color:var(--ink-600);margin-top:4px;max-width:320px;line-height:1.4;">
-          Co-authored publications between faculty members will dynamically generate network nodes and relationship edges.
-        </span>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:${h}px;color:var(--ink-400);font-size:13.5px;text-align:center;">
+        <span style="font-size:24px;margin-bottom:6px;">👥</span>
+        <span style="font-weight:600;color:var(--ink-600);">No collaborations recorded yet</span>
+        <span style="font-size:12px;margin-top:2px;">Co-authored publications between faculty members will generate network nodes and links.</span>
       </div>
     `;
     return;
@@ -199,29 +197,12 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
   const nodeMap = new Map();
   collaborations.forEach(c => {
     if (c.faculty1 && !nodeMap.has(c.faculty1)) {
-      nodeMap.set(c.faculty1, {
-        id: c.faculty1,
-        name: c.faculty1Name || 'Faculty',
-        collaborationsCount: 0,
-        sharedPapersCount: 0
-      });
+      nodeMap.set(c.faculty1, { id: c.faculty1, name: c.faculty1Name || 'Faculty' });
     }
     if (c.faculty2 && !nodeMap.has(c.faculty2)) {
-      nodeMap.set(c.faculty2, {
-        id: c.faculty2,
-        name: c.faculty2Name || 'Faculty',
-        collaborationsCount: 0,
-        sharedPapersCount: 0
-      });
+      nodeMap.set(c.faculty2, { id: c.faculty2, name: c.faculty2Name || 'Faculty' });
     }
-
-    const n1 = nodeMap.get(c.faculty1);
-    const n2 = nodeMap.get(c.faculty2);
-    const pubs = Number(c.publicationCount) || 1;
-    if (n1) { n1.collaborationsCount++; n1.sharedPapersCount += pubs; }
-    if (n2) { n2.collaborationsCount++; n2.sharedPapersCount += pubs; }
   });
-
   const nodes = Array.from(nodeMap.values());
 
   if (nodes.length === 0) {
@@ -238,20 +219,20 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
     width: "100%",
     height: h,
     class: "collab-network-svg",
-    style: "background: #FAFCFF; border-radius: 8px; display: block;"
+    style: "background: #FAFCFF; border-radius: 8px; border: 1px solid var(--line); display: block;"
   });
 
-  // Calculate layout coordinates
-  const pad = 65;
+  const pad = 60;
   const cx = w / 2;
-  const cy = h / 2 - 12;
-  const radius = Math.min((w - pad * 2) / 2, (h - pad * 2) / 2, 135);
+  const cy = h / 2 - 10;
+  const radius = Math.min((w - pad * 2) / 2, (h - pad * 2) / 2, 130);
 
+  // Position nodes
   if (nodes.length === 1) {
     nodes[0].x = cx;
     nodes[0].y = cy;
   } else if (nodes.length === 2) {
-    const spread = Math.min(170, (w - pad * 2) / 2.6);
+    const spread = Math.min(180, (w - pad * 2) / 3);
     nodes[0].x = cx - spread;
     nodes[0].y = cy;
     nodes[1].x = cx + spread;
@@ -261,7 +242,6 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
       const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
       node.x = cx + radius * Math.cos(angle);
       node.y = cy + radius * Math.sin(angle);
-      node.angle = angle;
     });
   }
 
@@ -270,7 +250,7 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
 
   const maxPubs = Math.max(...collaborations.map(c => Number(c.publicationCount) || 1), 1);
 
-  // SVG Groups for layering: edges at bottom, badges middle, nodes top
+  // Groups for layering: edges bottom, labels middle, nodes top
   const edgeGroup = svgEl("g", { class: "network-edges" });
   svg.appendChild(edgeGroup);
 
@@ -287,43 +267,49 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
     if (!n1 || !n2) return;
 
     const count = Number(collab.publicationCount) || 1;
-    // Edge thickness reflects shared publication count prominently
-    const minWidth = 3;
-    const maxWidth = 9;
-    const strokeWidth = maxPubs > 1 
-      ? minWidth + ((count - 1) / (maxPubs - 1)) * (maxWidth - minWidth)
-      : 3.5;
-
+    // Edge thickness reflects shared publication count
+    const strokeWidth = 2.5 + (count / maxPubs) * 5;
     // Edge opacity reflects strength
-    const opacity = 0.6 + (count / maxPubs) * 0.35;
-    const baseColor = count >= 3 ? "#1B54A3" : "#2E75C4";
+    const opacity = 0.55 + (count / maxPubs) * 0.4;
 
-    const edgeContainer = svgEl("g", { class: `edge-item edge-${idx}` });
-
-    // Wide transparent hover hit-area line for easy selection
-    const hitLine = svgEl("line", {
-      x1: n1.x, y1: n1.y,
-      x2: n2.x, y2: n2.y,
-      stroke: "transparent",
-      "stroke-width": 24,
-      "stroke-linecap": "round",
-      style: "cursor: pointer;"
-    });
-
-    // Visible styled line
     const line = svgEl("line", {
       x1: n1.x, y1: n1.y,
       x2: n2.x, y2: n2.y,
-      stroke: baseColor,
+      stroke: "#2E75C4",
       "stroke-width": strokeWidth,
       "stroke-linecap": "round",
       opacity: opacity,
-      style: "cursor: pointer; transition: stroke-width 0.2s, stroke 0.2s, opacity 0.2s;"
+      style: "cursor: pointer; transition: stroke-width 0.2s, stroke 0.2s, opacity 0.2s;",
+      "data-edge-id": idx
     });
 
-    edgeContainer.appendChild(hitLine);
-    edgeContainer.appendChild(line);
-    edgeGroup.appendChild(edgeContainer);
+    const highlightEdge = (active) => {
+      line.setAttribute("stroke", active ? "#0E3B70" : "#2E75C4");
+      line.setAttribute("stroke-width", active ? strokeWidth + 3 : strokeWidth);
+      line.setAttribute("opacity", active ? 1 : opacity);
+    };
+
+    line.addEventListener("mouseenter", () => {
+      highlightEdge(true);
+      if (typeof opts.onHoverCollaboration === "function") {
+        opts.onHoverCollaboration(collab);
+      }
+    });
+
+    line.addEventListener("mouseleave", () => {
+      highlightEdge(false);
+      if (typeof opts.onLeaveCollaboration === "function") {
+        opts.onLeaveCollaboration();
+      }
+    });
+
+    line.addEventListener("click", () => {
+      if (typeof opts.onSelectCollaboration === "function") {
+        opts.onSelectCollaboration(collab);
+      }
+    });
+
+    edgeGroup.appendChild(line);
 
     // Edge midpoint label badge showing publication count
     const mx = (n1.x + n2.x) / 2;
@@ -334,90 +320,66 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
       style: "cursor: pointer;"
     });
 
-    const papersLabel = `${count} ${count === 1 ? 'paper' : 'papers'}`;
-    const badgeWidth = count > 9 ? 74 : 66;
-
+    const badgeWidth = count > 9 ? 64 : 56;
     const badgeBg = svgEl("rect", {
-      x: -badgeWidth / 2, y: -10.5,
-      width: badgeWidth, height: 21,
-      rx: 10.5,
+      x: -badgeWidth / 2, y: -10,
+      width: badgeWidth, height: 20,
+      rx: 10,
       fill: "#FFFFFF",
-      stroke: baseColor,
+      stroke: "#2E75C4",
       "stroke-width": 1.5,
-      style: "filter: drop-shadow(0 1px 4px rgba(14,59,112,0.14)); transition: fill 0.2s, stroke 0.2s;"
+      style: "filter: drop-shadow(0 1px 3px rgba(14,59,112,0.12)); transition: fill 0.2s;"
     });
 
     const badgeText = svgEl("text", {
-      x: 0, y: 4,
+      x: 0, y: 3.5,
       "text-anchor": "middle",
       "font-size": 10.5,
-      "font-weight": 700,
+      "font-weight": 600,
       fill: "#0E3B70",
-      "font-family": "var(--font-body)",
-      style: "user-select: none;"
+      "font-family": "var(--font-body)"
     });
-    badgeText.textContent = papersLabel;
+    badgeText.textContent = `${count} pub${count > 1 ? 's' : ''}`;
 
     badgeGroup.appendChild(badgeBg);
     badgeGroup.appendChild(badgeText);
-    edgeLabelGroup.appendChild(badgeGroup);
 
-    const highlightEdge = (active) => {
-      line.setAttribute("stroke", active ? "#0E3B70" : baseColor);
-      line.setAttribute("stroke-width", active ? strokeWidth + 3 : strokeWidth);
-      line.setAttribute("opacity", active ? 1 : opacity);
-      badgeBg.setAttribute("fill", active ? "#EAF2FB" : "#FFFFFF");
-      badgeBg.setAttribute("stroke", active ? "#0E3B70" : baseColor);
-      badgeText.setAttribute("fill", active ? "#0E3B70" : "#1B54A3");
-    };
-
-    const onEnter = (evt) => {
+    badgeGroup.addEventListener("mouseenter", () => {
       highlightEdge(true);
+      badgeBg.setAttribute("fill", "#EAF2FB");
       if (typeof opts.onHoverCollaboration === "function") {
-        opts.onHoverCollaboration(collab, evt, { mx, my });
+        opts.onHoverCollaboration(collab);
       }
-    };
-
-    const onLeave = () => {
+    });
+    badgeGroup.addEventListener("mouseleave", () => {
       highlightEdge(false);
+      badgeBg.setAttribute("fill", "#FFFFFF");
       if (typeof opts.onLeaveCollaboration === "function") {
-        opts.onLeaveCollaboration(collab);
+        opts.onLeaveCollaboration();
       }
-    };
-
-    const onSelect = (evt) => {
-      highlightEdge(true);
+    });
+    badgeGroup.addEventListener("click", () => {
       if (typeof opts.onSelectCollaboration === "function") {
-        opts.onSelectCollaboration(collab, evt);
+        opts.onSelectCollaboration(collab);
       }
-    };
+    });
 
-    hitLine.addEventListener("mouseenter", onEnter);
-    hitLine.addEventListener("mouseleave", onLeave);
-    hitLine.addEventListener("click", onSelect);
-
-    line.addEventListener("mouseenter", onEnter);
-    line.addEventListener("mouseleave", onLeave);
-    line.addEventListener("click", onSelect);
-
-    badgeGroup.addEventListener("mouseenter", onEnter);
-    badgeGroup.addEventListener("mouseleave", onLeave);
-    badgeGroup.addEventListener("click", onSelect);
+    edgeLabelGroup.appendChild(badgeGroup);
   });
 
   // Render nodes
-  nodes.forEach((node, nodeIdx) => {
+  nodes.forEach(node => {
     const ng = svgEl("g", {
-      class: `network-node node-${nodeIdx}`,
+      class: "network-node",
       style: "cursor: pointer;"
     });
 
     const halo = svgEl("circle", {
       cx: node.x, cy: node.y,
-      r: 30,
+      r: 28,
       fill: "#2E75C4",
       opacity: 0,
-      style: "transition: opacity 0.2s, r 0.2s;"
+      style: "transition: opacity 0.2s;"
     });
 
     const circle = svgEl("circle", {
@@ -425,8 +387,8 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
       r: 22,
       fill: "#1B54A3",
       stroke: "#FFFFFF",
-      "stroke-width": 3,
-      style: "filter: drop-shadow(0 2px 6px rgba(14,59,112,0.22)); transition: fill 0.2s;"
+      "stroke-width": 2.5,
+      style: "filter: drop-shadow(0 2px 5px rgba(14,59,112,0.2)); transition: fill 0.2s;"
     });
 
     const cleaned = node.name.replace(/^Dr\.\s*/i, '').trim();
@@ -441,25 +403,19 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
       "font-size": 11.5,
       "font-weight": 700,
       fill: "#FFFFFF",
-      "font-family": "var(--font-body)",
-      style: "user-select: none;"
+      "font-family": "var(--font-body)"
     });
     textInitials.textContent = initials;
 
-    // Smart label placement
-    let nameY = node.y + 36;
-    if (nodes.length > 2 && node.angle !== undefined && Math.sin(node.angle) < -0.3) {
-      nameY = node.y - 28;
-    }
-
+    const nameY = node.y + 36;
     const nameLabel = svgEl("text", {
       x: node.x, y: nameY,
       "text-anchor": "middle",
-      "font-size": 12.5,
+      "font-size": 12,
       "font-weight": 600,
       fill: "#12233F",
       "font-family": "var(--font-body)",
-      style: "paint-order: stroke fill; stroke: #FFFFFF; stroke-width: 4px; stroke-linecap: round; stroke-linejoin: round; user-select: none;"
+      style: "paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round;"
     });
     nameLabel.textContent = node.name;
 
@@ -468,27 +424,25 @@ function renderCollaborationNetwork(container, collaborations, opts = {}) {
     ng.appendChild(textInitials);
     ng.appendChild(nameLabel);
 
-    ng.addEventListener("mouseenter", (evt) => {
-      halo.setAttribute("opacity", 0.22);
-      halo.setAttribute("r", 33);
+    ng.addEventListener("mouseenter", () => {
+      halo.setAttribute("opacity", 0.18);
       circle.setAttribute("fill", "#0E3B70");
       if (typeof opts.onHoverNode === "function") {
-        opts.onHoverNode(node, evt);
+        opts.onHoverNode(node);
       }
     });
 
     ng.addEventListener("mouseleave", () => {
       halo.setAttribute("opacity", 0);
-      halo.setAttribute("r", 30);
       circle.setAttribute("fill", "#1B54A3");
       if (typeof opts.onLeaveNode === "function") {
-        opts.onLeaveNode(node);
+        opts.onLeaveNode();
       }
     });
 
-    ng.addEventListener("click", (evt) => {
+    ng.addEventListener("click", () => {
       if (typeof opts.onSelectNode === "function") {
-        opts.onSelectNode(node, evt);
+        opts.onSelectNode(node);
       }
     });
 

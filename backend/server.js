@@ -10,6 +10,7 @@ const publicationRoutes = require('./routes/publication.routes');
 const authRoutes = require('./routes/auth.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const importRoutes = require('./routes/import.routes');
+const integrationRoutes = require('./routes/integration.routes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -51,6 +52,14 @@ app.get('/', (req, res) => {
       import: {
         publications: 'POST /api/import/publications',
         sources: 'GET /api/import/sources'
+      },
+      integrations: {
+        orcid: 'GET /api/integrations/orcid/:facultyId',
+        orcidImport: 'POST /api/integrations/orcid/:facultyId/import',
+        scopus: 'GET /api/integrations/scopus/:facultyId',
+        scopusImport: 'POST /api/integrations/scopus/:facultyId/import',
+        googleScholar: 'GET /api/integrations/google-scholar/:facultyId',
+        googleScholarImport: 'POST /api/integrations/google-scholar/:facultyId/import'
       }
     }
   });
@@ -63,6 +72,7 @@ app.use('/api/faculty', facultyRoutes);
 app.use('/api/publications', publicationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/integrations', integrationRoutes);
 
 // Error Handling Middleware
 app.use(notFound);

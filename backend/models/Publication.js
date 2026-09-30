@@ -54,9 +54,38 @@ const PublicationSchema = new mongoose.Schema({
     enum: ['Journal', 'Conference', 'Book Chapter', 'Book', 'Patent', 'Preprint', 'Other'],
     default: 'Journal'
   },
+  // Existing / manually assigned research domains (verified)
   researchDomains: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ResearchDomain'
+  }],
+  // Automatically predicted research domains (Phase 12A foundation, Phase 12B enhanced)
+  predictedResearchDomains: [{
+    domain: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ResearchDomain'
+    },
+    name: {
+      type: String,
+      trim: true
+    },
+    confidence: {
+      type: Number,
+      min: 0,
+      max: 1
+    },
+    matchedKeywords: [{
+      type: String,
+      trim: true
+    }],
+    matchedPhrases: [{
+      type: String,
+      trim: true
+    }],
+    matchedAcronyms: [{
+      type: String,
+      trim: true
+    }]
   }],
   keywords: [{
     type: String,
@@ -72,6 +101,21 @@ const PublicationSchema = new mongoose.Schema({
     type: String,
     sparse: true,
     trim: true
+  },
+  // Soft-merge duplicate tracking fields
+  isDuplicate: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  mergedInto: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Publication',
+    default: null
+  },
+  mergedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

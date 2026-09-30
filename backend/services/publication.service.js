@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Publication = require('../models/Publication');
 const Faculty = require('../models/Faculty');
 const ResearchDomain = require('../models/ResearchDomain');
+const duplicateDetectionService = require('./duplicateDetection.service');
 
 /**
  * Helper to find publication by MongoDB _id or custom publicationCode
@@ -11,12 +12,14 @@ const findPublicationByIdOrCode = async (id) => {
   if (mongoose.Types.ObjectId.isValid(id)) {
     const pub = await Publication.findById(id)
       .populate('facultyIds', 'name email department designation')
-      .populate('researchDomains', 'name');
+      .populate('researchDomains', 'name')
+      .populate('mergedInto', 'title year doi publicationCode');
     if (pub) return pub;
   }
   return await Publication.findOne({ publicationCode: id })
     .populate('facultyIds', 'name email department designation')
-    .populate('researchDomains', 'name');
+    .populate('researchDomains', 'name')
+    .populate('mergedInto', 'title year doi publicationCode');
 };
 
 /**
@@ -31,6 +34,11 @@ const getPublications = async (queryParams) => {
   const skip = (page - 1) * limit;
 
   const filter = {};
+
+  // Exclude soft-merged duplicate records unless explicitly requested
+  if (queryParams.includeDuplicates !== 'true') {
+    filter.isDuplicate = { $ne: true };
+  }
 
   // Filter by year
   if (year && !isNaN(year)) {
@@ -132,22 +140,130 @@ const getPublicationById = async (id) => {
 };
 
 /**
- * Service to create a new publication
+ * Service to create a new publication with deduplication workflow
  */
-const createPublication = async (data) => {
+const createPublication = async (data, options = {}) => {
+  let facultyIds = [];
+
   // Support single facultyId or array facultyIds
   if (data.facultyId && (!data.facultyIds || data.facultyIds.length === 0)) {
     if (mongoose.Types.ObjectId.isValid(data.facultyId)) {
-      data.facultyIds = [data.facultyId];
+      facultyIds = [data.facultyId];
     } else {
       const faculty = await Faculty.findOne({ facultyCode: data.facultyId });
       if (faculty) {
-        data.facultyIds = [faculty._id];
+        facultyIds = [faculty._id];
       }
     }
+  } else if (Array.isArray(data.facultyIds)) {
+    facultyIds = data.facultyIds;
   }
 
-  const publication = await Publication.create(data);
+  // Deduplication workflow (enabled by default)
+  if (options.deduplicate !== false && data.deduplicate !== false) {
+    const importService = require('./import.service');
+    const DuplicateReview = require('../models/DuplicateReview');
+
+    const source = data.source || 'manual';
+    const normalizedPub = importService.normalizePublication({
+      ...data,
+      facultyIds: facultyIds.length > 0 ? facultyIds : undefined
+    }, source);
+
+    const validation = importService.validatePublicationRecord(normalizedPub, { requireYear: true });
+    if (!validation.isValid) {
+      const err = new Error('Publication validation failed');
+      err.status = 400;
+      err.validationErrors = validation.errors;
+      throw err;
+    }
+
+    // Run duplicate detection against existing active publications
+    const dupResult = await duplicateDetectionService.findDuplicatesForRecord(normalizedPub);
+    const candidates = dupResult.candidates || [];
+    const topCandidate = candidates[0];
+
+    // Strong match found: do NOT create another publication
+    if (topCandidate && topCandidate.confidence === 'high') {
+      return {
+        isDuplicate: true,
+        action: 'skipped',
+        existingPublicationId: topCandidate.existingPublicationId,
+        existingPublication: topCandidate.existingPublication,
+        incomingPublication: {
+          title: normalizedPub.title,
+          year: normalizedPub.year,
+          authors: normalizedPub.authors || [],
+          doi: normalizedPub.doi || '',
+          venue: normalizedPub.venue || normalizedPub.journal || normalizedPub.conference || '',
+          journal: normalizedPub.journal || '',
+          conference: normalizedPub.conference || '',
+          source: normalizedPub.source || source
+        },
+        similarityScore: topCandidate.similarityScore,
+        confidence: topCandidate.confidence,
+        matchType: topCandidate.matchType,
+        matchingSignals: topCandidate.matchingSignals,
+        reasons: topCandidate.reasons,
+        message: 'Publication was not created because a strong duplicate already exists'
+      };
+    }
+
+    // Uncertain match: safely store publication and create a pending duplicate-review record
+    if (topCandidate && (topCandidate.confidence === 'medium' || topCandidate.confidence === 'low')) {
+      const publication = await Publication.create({
+        ...normalizedPub,
+        facultyIds: facultyIds.length > 0 ? facultyIds : normalizedPub.facultyIds
+      });
+
+      try {
+        const idA = publication._id;
+        const idB = topCandidate.existingPublicationId;
+
+        // Check if review already exists for this pair in either direction (Task 7)
+        const existingReview = await DuplicateReview.findOne({
+          $or: [
+            { publicationId: idA, potentialDuplicateId: idB },
+            { publicationId: idB, potentialDuplicateId: idA }
+          ]
+        });
+
+        if (!existingReview) {
+          await DuplicateReview.create({
+            publicationId: idA,
+            potentialDuplicateId: idB,
+            similarityScore: topCandidate.similarityScore,
+            confidence: topCandidate.confidence,
+            matchingSignals: topCandidate.matchingSignals,
+            status: 'pending'
+          });
+        }
+      } catch (revErr) {
+        // Continue gracefully if review record creation encounters issue
+      }
+
+      return await publication.populate([
+        { path: 'facultyIds', select: 'name email department designation' },
+        { path: 'researchDomains', select: 'name' }
+      ]);
+    }
+
+    // No duplicate candidate exists: create normally
+    const publication = await Publication.create({
+      ...normalizedPub,
+      facultyIds: facultyIds.length > 0 ? facultyIds : normalizedPub.facultyIds
+    });
+    return await publication.populate([
+      { path: 'facultyIds', select: 'name email department designation' },
+      { path: 'researchDomains', select: 'name' }
+    ]);
+  }
+
+  // Direct creation without deduplication check (options.deduplicate === false)
+  const publication = await Publication.create({
+    ...data,
+    facultyIds: facultyIds.length > 0 ? facultyIds : data.facultyIds
+  });
   return await publication.populate([
     { path: 'facultyIds', select: 'name email department designation' },
     { path: 'researchDomains', select: 'name' }
@@ -196,10 +312,18 @@ const deletePublication = async (id) => {
   return true;
 };
 
+/**
+ * Service to get potential duplicate candidates for a publication
+ */
+const getPublicationDuplicates = async (id, options = {}) => {
+  return await duplicateDetectionService.findDuplicatesForPublicationId(id, options);
+};
+
 module.exports = {
   getPublications,
   getPublicationById,
   createPublication,
   updatePublication,
-  deletePublication
+  deletePublication,
+  getPublicationDuplicates
 };

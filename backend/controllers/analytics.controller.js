@@ -15,10 +15,11 @@ const getOverviewAnalytics = async (req, res, next) => {
       citationAgg
     ] = await Promise.all([
       Faculty.countDocuments(),
-      Publication.countDocuments(),
+      Publication.countDocuments({ isDuplicate: { $ne: true } }),
       ResearchDomain.countDocuments(),
       Collaboration.countDocuments(),
       Publication.aggregate([
+        { $match: { isDuplicate: { $ne: true } } },
         {
           $group: {
             _id: null,
@@ -61,6 +62,7 @@ const getOverviewAnalytics = async (req, res, next) => {
 const getYearlyAnalytics = async (req, res, next) => {
   try {
     const yearlyStats = await Publication.aggregate([
+      { $match: { isDuplicate: { $ne: true } } },
       {
         $project: {
           citations: 1,
@@ -165,6 +167,7 @@ const getDepartmentAnalytics = async (req, res, next) => {
           pipeline: [
             {
               $match: {
+                isDuplicate: { $ne: true },
                 $expr: {
                   $gt: [
                     {
@@ -262,6 +265,7 @@ const getResearchDomainAnalytics = async (req, res, next) => {
           pipeline: [
             {
               $match: {
+                isDuplicate: { $ne: true },
                 $expr: {
                   $or: [
                     { $in: ['$$domainId', { $ifNull: ['$researchDomains', []] }] },
@@ -348,6 +352,7 @@ const getCollaborationsAnalytics = async (req, res, next) => {
     const collaborations = await Publication.aggregate([
       {
         $match: {
+          isDuplicate: { $ne: true },
           'facultyIds.1': { $exists: true }
         }
       },
