@@ -313,22 +313,29 @@ const classifyPublicationResearchDomains = (publication, options = {}) => {
  * @returns {Promise<object>} Prediction result payload with publication info and domain matches
  */
 const predictDomainsForPublicationId = async (publicationId, options = {}) => {
-  if (!publicationId) {
+  if (!publicationId || typeof publicationId !== 'string' || publicationId.trim() === '') {
     const error = new Error('Publication ID is required');
     error.status = 400;
     throw error;
   }
 
+  const trimmedId = publicationId.trim();
+
   let publication = null;
-  if (mongoose.Types.ObjectId.isValid(publicationId)) {
-    publication = await Publication.findById(publicationId)
+  if (mongoose.Types.ObjectId.isValid(trimmedId)) {
+    publication = await Publication.findById(trimmedId)
       .populate('facultyIds', 'name email department designation')
       .populate('researchDomains', 'name description');
-  }
-  if (!publication) {
-    publication = await Publication.findOne({ publicationCode: publicationId })
+  } else {
+    publication = await Publication.findOne({ publicationCode: trimmedId })
       .populate('facultyIds', 'name email department designation')
       .populate('researchDomains', 'name description');
+
+    if (!publication) {
+      const error = new Error('Invalid publication ID format');
+      error.status = 400;
+      throw error;
+    }
   }
 
   if (!publication) {
@@ -390,6 +397,152 @@ const predictDomainsForPublicationId = async (publicationId, options = {}) => {
   };
 };
 
+/**
+ * Predict and store research domains for an existing publication (Phase 12C)
+ * 
+ * Reuses the existing Phase 12B explainable classifier, updates predictedResearchDomains
+ * and predictionMetadata on the publication in MongoDB, and returns the stored result.
+ * 
+ * CRITICAL: Manual researchDomains are strictly preserved and never modified or overwritten.
+ * 
+ * @param {string} publicationId MongoDB _id or publicationCode
+ * @param {object} options Optional scoring parameters { minConfidence, maxDomains, topK, includeEvidence }
+ * @returns {Promise<object>} Prediction result payload with stored domain records and metadata
+ */
+const predictAndStorePublicationResearchDomains = async (publicationId, options = {}) => {
+  if (!publicationId || typeof publicationId !== 'string' || publicationId.trim() === '') {
+    const error = new Error('Publication ID is required');
+    error.status = 400;
+    throw error;
+  }
+
+  const trimmedId = publicationId.trim();
+
+  let publication = null;
+  if (mongoose.Types.ObjectId.isValid(trimmedId)) {
+    publication = await Publication.findById(trimmedId)
+      .populate('facultyIds', 'name email department designation')
+      .populate('researchDomains', 'name description');
+  } else {
+    publication = await Publication.findOne({ publicationCode: trimmedId })
+      .populate('facultyIds', 'name email department designation')
+      .populate('researchDomains', 'name description');
+
+    if (!publication) {
+      const error = new Error('Invalid publication ID format');
+      error.status = 400;
+      throw error;
+    }
+  }
+
+  if (!publication) {
+    const error = new Error('Publication not found');
+    error.status = 404;
+    throw error;
+  }
+
+  // 1. Run the existing Phase 12B classifier on the publication text
+  const classification = classifyPublicationResearchDomains(publication, options);
+  const includeEvidence = options.includeEvidence !== undefined ? Boolean(options.includeEvidence) : true;
+
+  // 2. Look up matching ResearchDomain records in MongoDB to link domain IDs
+  const predictedDomainNames = classification.domains.map(d => d.name);
+  let domainRecords = [];
+  if (predictedDomainNames.length > 0) {
+    try {
+      domainRecords = await ResearchDomain.find({
+        name: { $in: predictedDomainNames }
+      }).select('_id name description').lean();
+    } catch (e) {
+      domainRecords = [];
+    }
+  }
+
+  const domainMap = new Map();
+  for (const dr of domainRecords) {
+    domainMap.set(dr.name.toLowerCase(), dr._id);
+  }
+
+  const predictionTimestamp = new Date(classification.metadata.predictedAt);
+
+  // 3. Format predictions for storage in publication.predictedResearchDomains
+  const storedPredictions = classification.domains.map(d => {
+    const domainId = domainMap.get(d.name.toLowerCase()) || null;
+    const entry = {
+      domain: domainId,
+      name: d.name,
+      confidence: d.confidence,
+      classifierVersion: classification.metadata.classifierVersion,
+      classificationMethod: classification.metadata.classificationMethod,
+      predictedAt: predictionTimestamp
+    };
+
+    if (includeEvidence) {
+      entry.matchedKeywords = d.matchedKeywords || [];
+      entry.matchedPhrases = d.matchedPhrases || [];
+      entry.matchedAcronyms = d.matchedAcronyms || [];
+      entry.signals = d.signals || { titleMatches: [], keywordMatches: [], abstractMatches: [] };
+    } else {
+      entry.matchedKeywords = [];
+      entry.matchedPhrases = [];
+      entry.matchedAcronyms = [];
+      entry.signals = { titleMatches: [], keywordMatches: [], abstractMatches: [] };
+    }
+
+    return entry;
+  });
+
+  // 4. Update predictedResearchDomains and predictionMetadata on publication
+  // Repeated prediction replaces previous automated entries cleanly
+  publication.predictedResearchDomains = storedPredictions;
+  publication.predictionMetadata = {
+    classifierVersion: classification.metadata.classifierVersion,
+    classificationMethod: classification.metadata.classificationMethod,
+    predictedAt: predictionTimestamp,
+    confidenceThreshold: classification.metadata.confidenceThreshold,
+    maxDomainsLimit: classification.metadata.maxDomainsLimit,
+    totalDomainsEvaluated: classification.metadata.totalDomainsEvaluated
+  };
+
+  // 5. Save the updated publication to MongoDB (manual researchDomains remain untouched)
+  await publication.save();
+
+  // 6. Return response payload
+  const returnedPredictions = storedPredictions.map(p => {
+    const item = {
+      domainId: p.domain ? p.domain.toString() : null,
+      name: p.name,
+      confidence: p.confidence
+    };
+    if (includeEvidence) {
+      item.matchedKeywords = p.matchedKeywords;
+      item.matchedPhrases = p.matchedPhrases;
+      item.matchedAcronyms = p.matchedAcronyms;
+      item.signals = p.signals;
+    }
+    item.classifierVersion = p.classifierVersion;
+    item.classificationMethod = p.classificationMethod;
+    item.predictedAt = p.predictedAt ? p.predictedAt.toISOString() : undefined;
+    return item;
+  });
+
+  return {
+    publicationId: publication._id.toString(),
+    publicationCode: publication.publicationCode || undefined,
+    title: publication.title,
+    year: publication.year,
+    authors: publication.authors || [],
+    manualResearchDomains: (publication.researchDomains || []).map(rd => ({
+      id: rd._id ? rd._id.toString() : rd.toString(),
+      name: rd.name || undefined
+    })),
+    predictions: returnedPredictions,
+    hasPredictions: returnedPredictions.length > 0,
+    metadata: classification.metadata,
+    saved: true
+  };
+};
+
 module.exports = {
   DEFAULT_MIN_RAW_SCORE,
   DEFAULT_MIN_CONFIDENCE,
@@ -399,5 +552,6 @@ module.exports = {
   normalizeText,
   extractPublicationText,
   classifyPublicationResearchDomains,
-  predictDomainsForPublicationId
+  predictDomainsForPublicationId,
+  predictAndStorePublicationResearchDomains
 };

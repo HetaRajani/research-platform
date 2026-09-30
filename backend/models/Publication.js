@@ -59,7 +59,7 @@ const PublicationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ResearchDomain'
   }],
-  // Automatically predicted research domains (Phase 12A foundation, Phase 12B enhanced)
+  // Automatically predicted research domains (Phase 12A foundation, Phase 12B/12C enhanced)
   predictedResearchDomains: [{
     domain: {
       type: mongoose.Schema.Types.ObjectId,
@@ -85,8 +85,33 @@ const PublicationSchema = new mongoose.Schema({
     matchedAcronyms: [{
       type: String,
       trim: true
-    }]
+    }],
+    signals: {
+      titleMatches: [{ type: String, trim: true }],
+      keywordMatches: [{ type: String, trim: true }],
+      abstractMatches: [{ type: String, trim: true }]
+    },
+    classifierVersion: {
+      type: String,
+      trim: true
+    },
+    classificationMethod: {
+      type: String,
+      trim: true
+    },
+    predictedAt: {
+      type: Date
+    }
   }],
+  // Stored classification metadata for automated domain predictions (Phase 12C)
+  predictionMetadata: {
+    classifierVersion: { type: String, trim: true },
+    classificationMethod: { type: String, trim: true },
+    predictedAt: { type: Date },
+    confidenceThreshold: { type: Number },
+    maxDomainsLimit: { type: Number },
+    totalDomainsEvaluated: { type: Number }
+  },
   keywords: [{
     type: String,
     trim: true

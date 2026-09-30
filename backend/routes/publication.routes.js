@@ -10,6 +10,7 @@ const {
   rejectDuplicateReview,
   mergeDuplicateReview,
   predictPublicationResearchDomains,
+  applyPublicationResearchDomains,
   createPublication,
   updatePublication,
   deletePublication
@@ -32,8 +33,9 @@ router.post('/duplicates/:id/merge', protect, authorize('admin'), mergeDuplicate
 // Specific publication duplicates detection
 router.get('/:id/duplicates', getPublicationDuplicates);
 
-// Specific publication research domain prediction (Phase 12A)
+// Specific publication research domain prediction (Phase 12A read-only, Phase 12C apply/store)
 router.get('/:id/research-domains/predict', predictPublicationResearchDomains);
+router.post('/:id/research-domains/predict', protect, authorize('admin', 'faculty'), applyPublicationResearchDomains);
 
 router.route('/:id')
   .get(getPublicationById)

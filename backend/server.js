@@ -47,6 +47,7 @@ app.get('/', (req, res) => {
         yearly: '/api/analytics/yearly',
         departments: '/api/analytics/departments',
         researchDomains: '/api/analytics/research-domains',
+        predictedResearchDomains: '/api/analytics/research-domains/predicted',
         collaborations: '/api/analytics/collaborations'
       },
       import: {

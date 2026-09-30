@@ -236,12 +236,179 @@ const getDepartmentAnalytics = async (req, res, next) => {
 };
 
 /**
+ * Helper to compute analytics from automated predictedResearchDomains (Phase 12D)
+ * Evaluates non-duplicate publications, aggregates publication count, citations,
+ * unique faculty count, average prediction confidence, and prediction count per domain.
+ * 
+ * Duplicate safety: completely ignores isDuplicate === true records.
+ * Anti double-counting: a publication contributes only once to publicationCount and citationCount per domain.
+ * 
+ * @returns {Promise<Array<object>>}
+ */
+const computePredictedDomainStats = async () => {
+  const predictedAgg = await Publication.aggregate([
+    // 1. Exclude soft-merged duplicate records and publications without predictions
+    {
+      $match: {
+        isDuplicate: { $ne: true },
+        'predictedResearchDomains.0': { $exists: true }
+      }
+    },
+    // 2. Unwind predictedResearchDomains
+    {
+      $unwind: '$predictedResearchDomains'
+    },
+    // 3. Project normalized fields
+    {
+      $project: {
+        publicationId: '$_id',
+        domain: { $trim: { input: '$predictedResearchDomains.name' } },
+        confidence: '$predictedResearchDomains.confidence',
+        citations: {
+          $max: [
+            0,
+            {
+              $convert: {
+                input: '$citations',
+                to: 'int',
+                onError: 0,
+                onNull: 0
+              }
+            }
+          ]
+        },
+        facultyIds: {
+          $filter: {
+            input: { $ifNull: ['$facultyIds', []] },
+            as: 'f',
+            cond: { $ne: ['$$f', null] }
+          }
+        }
+      }
+    },
+    // 4. Ensure domain is a non-empty string
+    {
+      $match: {
+        domain: { $exists: true, $nin: ['', null] }
+      }
+    },
+    // 5. Deduplicate per (domain, publicationId):
+    // Prevents double-counting if a publication accidentally has duplicate prediction entries
+    {
+      $group: {
+        _id: {
+          domain: '$domain',
+          publicationId: '$publicationId'
+        },
+        citations: { $first: '$citations' },
+        facultyIds: { $first: '$facultyIds' },
+        confidencesOnPub: {
+          $push: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ['$confidence', null] },
+                  { $gte: ['$confidence', 0] },
+                  { $lte: ['$confidence', 1] }
+                ]
+              },
+              '$confidence',
+              '$$REMOVE'
+            ]
+          }
+        },
+        predictionEntriesOnPub: { $sum: 1 }
+      }
+    },
+    // 6. Group by domain across all unique publications
+    {
+      $group: {
+        _id: '$_id.domain',
+        publicationCount: { $sum: 1 },
+        citationCount: { $sum: '$citations' },
+        predictionCount: { $sum: '$predictionEntriesOnPub' },
+        facultyIdsArray: { $push: '$facultyIds' },
+        allConfidences: { $push: '$confidencesOnPub' }
+      }
+    },
+    // 7. Calculate final metrics
+    {
+      $project: {
+        _id: 0,
+        domain: '$_id',
+        publicationCount: '$publicationCount',
+        citationCount: '$citationCount',
+        predictionCount: '$predictionCount',
+        facultyCount: {
+          $size: {
+            $reduce: {
+              input: '$facultyIdsArray',
+              initialValue: [],
+              in: { $setUnion: ['$$value', '$$this'] }
+            }
+          }
+        },
+        flattenedConfidences: {
+          $reduce: {
+            input: '$allConfidences',
+            initialValue: [],
+            in: { $concatArrays: ['$$value', '$$this'] }
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        domain: 1,
+        publicationCount: 1,
+        citationCount: 1,
+        facultyCount: 1,
+        predictionCount: 1,
+        averageConfidence: {
+          $cond: [
+            { $gt: [{ $size: '$flattenedConfidences' }, 0] },
+            { $round: [{ $avg: '$flattenedConfidences' }, 2] },
+            null
+          ]
+        }
+      }
+    },
+    {
+      $sort: { publicationCount: -1, domain: 1 }
+    }
+  ]);
+
+  return (predictedAgg || []).map(item => ({
+    domain: item.domain,
+    publicationCount: item.publicationCount || 0,
+    citationCount: item.citationCount || 0,
+    facultyCount: item.facultyCount || 0,
+    averageConfidence: item.averageConfidence !== null && !isNaN(item.averageConfidence) ? item.averageConfidence : null,
+    predictionCount: item.predictionCount || item.publicationCount || 0
+  }));
+};
+
+/**
  * @desc    Get research domain publication, citation, and faculty analytics from MongoDB
  * @route   GET /api/analytics/research-domains
  * @access  Public
  */
 const getResearchDomainAnalytics = async (req, res, next) => {
   try {
+    const type = req.query.type ? String(req.query.type).toLowerCase() : null;
+    const isSplit = req.query.split === 'true' || req.query.format === 'split' || req.query.view === 'split' || type === 'split';
+
+    // 1. If client specifically requested predicted domains:
+    if (type === 'predicted') {
+      const predictedStats = await computePredictedDomainStats();
+      return res.status(200).json({
+        success: true,
+        data: predictedStats,
+        predicted: predictedStats
+      });
+    }
+
+    // 2. Compute manual domain analytics (existing pipeline)
     const domainStats = await ResearchDomain.aggregate([
       {
         $match: {
@@ -326,16 +493,63 @@ const getResearchDomainAnalytics = async (req, res, next) => {
       }
     ]);
 
-    const formattedStats = (domainStats || []).map(item => ({
+    const formattedManualStats = (domainStats || []).map(item => ({
       domain: item.domain,
       publicationCount: item.publicationCount || 0,
       citationCount: item.citationCount || 0,
       facultyCount: item.facultyCount || 0
     }));
 
+    // If client specifically requested only manual domains:
+    if (type === 'manual') {
+      return res.status(200).json({
+        success: true,
+        data: formattedManualStats,
+        manual: formattedManualStats
+      });
+    }
+
+    // Compute predicted domain stats for enhanced analytics response
+    const predictedStats = await computePredictedDomainStats();
+
+    // If client requested split format:
+    if (isSplit) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          manual: formattedManualStats,
+          predicted: predictedStats
+        },
+        manual: formattedManualStats,
+        predicted: predictedStats
+      });
+    }
+
+    // Default backward-compatible format:
+    // data is array of manual stats (preserving existing frontend and tests),
+    // and predicted & manual arrays are also exposed as top-level properties!
     res.status(200).json({
       success: true,
-      data: formattedStats
+      data: formattedManualStats,
+      manual: formattedManualStats,
+      predicted: predictedStats
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get automated predicted research domain analytics (Phase 12D)
+ * @route   GET /api/analytics/research-domains/predicted
+ * @access  Public
+ */
+const getPredictedResearchDomainAnalytics = async (req, res, next) => {
+  try {
+    const predictedStats = await computePredictedDomainStats();
+    res.status(200).json({
+      success: true,
+      data: predictedStats
     });
   } catch (error) {
     next(error);
@@ -473,6 +687,7 @@ module.exports = {
   getYearlyAnalytics,
   getDepartmentAnalytics,
   getResearchDomainAnalytics,
+  getPredictedResearchDomainAnalytics,
   getCollaborationsAnalytics
 };
 

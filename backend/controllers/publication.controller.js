@@ -447,6 +447,61 @@ const predictPublicationResearchDomains = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Predict and store research domains for an existing publication (Phase 12C)
+ * @route   POST /api/publications/:id/research-domains/predict
+ * @access  Private (Admin or Faculty)
+ */
+const applyPublicationResearchDomains = async (req, res, next) => {
+  try {
+    const minConfidence = req.query.minConfidence !== undefined
+      ? parseFloat(req.query.minConfidence)
+      : (req.body && req.body.minConfidence !== undefined ? parseFloat(req.body.minConfidence) : undefined);
+
+    const maxDomains = req.query.maxDomains !== undefined
+      ? parseInt(req.query.maxDomains, 10)
+      : (req.query.limit !== undefined
+          ? parseInt(req.query.limit, 10)
+          : (req.body && req.body.maxDomains !== undefined
+              ? parseInt(req.body.maxDomains, 10)
+              : (req.body && req.body.limit !== undefined ? parseInt(req.body.limit, 10) : undefined)));
+
+    const includeEvidence = req.query.includeEvidence !== undefined
+      ? (req.query.includeEvidence === 'true' || req.query.includeEvidence === '1')
+      : (req.body && req.body.includeEvidence !== undefined ? Boolean(req.body.includeEvidence) : true);
+
+    const result = await domainClassificationService.predictAndStorePublicationResearchDomains(
+      req.params.id,
+      {
+        minConfidence,
+        maxDomains,
+        topK: maxDomains,
+        includeEvidence
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Research domains predicted and applied successfully',
+      data: result
+    });
+  } catch (error) {
+    if (error.status === 404) {
+      return res.status(404).json({
+        success: false,
+        message: error.message || 'Publication not found'
+      });
+    }
+    if (error.status === 400) {
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Invalid publication request'
+      });
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getPublications,
   getPublicationById,
@@ -457,6 +512,7 @@ module.exports = {
   rejectDuplicateReview,
   mergeDuplicateReview,
   predictPublicationResearchDomains,
+  applyPublicationResearchDomains,
   createPublication,
   updatePublication,
   deletePublication

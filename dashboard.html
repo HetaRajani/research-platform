@@ -370,9 +370,8 @@
       const res = await fetch(getApiUrl('/analytics/research-domains'), { headers: getApiHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (!json.success || !Array.isArray(json.data)) throw new Error(json.message || 'Invalid research domain response');
-
-      const data = json.data;
+      const data = Array.isArray(json.data) ? json.data : (json.data && Array.isArray(json.data.manual) ? json.data.manual : (Array.isArray(json.manual) ? json.manual : []));
+      if (!json.success || !Array.isArray(data)) throw new Error(json.message || 'Invalid research domain response');
       if (data.length === 0) {
         if (chartBox) chartBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:var(--ink-400);font-size:13px;">No research domains recorded yet</div>';
         if (tableBody) tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--ink-400);">No research domain records found.</td></tr>';

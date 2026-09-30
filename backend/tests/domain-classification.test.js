@@ -8,12 +8,15 @@ const express = require('express');
 const healthRoutes = require('../routes/health.routes');
 const publicationRoutes = require('../routes/publication.routes');
 const { errorHandler } = require('../middleware/errorHandler');
+const jwt = require('jsonwebtoken');
 
 const Publication = require('../models/Publication');
 const ResearchDomain = require('../models/ResearchDomain');
+const User = require('../models/User');
 const {
   classifyPublicationResearchDomains,
   predictDomainsForPublicationId,
+  predictAndStorePublicationResearchDomains,
   extractPublicationText,
   normalizeText,
   CLASSIFIER_VERSION,
@@ -22,8 +25,9 @@ const {
 const { DOMAIN_VOCABULARY, getDomainByName, getAllDomains } = require('../config/domainVocabulary');
 
 const TEST_DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/research_platform_test';
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
-describe('Phase 12A — Research Domain Classification Foundation', () => {
+describe('Phase 12 — Research Domain Classification Foundation & Storage', () => {
   let app;
   let server;
   let baseUrl;
@@ -31,6 +35,11 @@ describe('Phase 12A — Research Domain Classification Foundation', () => {
   let testDomainIoT;
   let testDomainCyber;
   let testDomainBlockchain;
+  let adminUser;
+  let adminToken;
+  let facultyUser;
+  let facultyToken;
+  let unauthorizedToken;
 
   before(async () => {
     if (mongoose.connection.readyState === 0) {
@@ -52,9 +61,40 @@ describe('Phase 12A — Research Domain Classification Foundation', () => {
       });
     });
 
-    // Cleanup Phase 12A test records
-    await Publication.deleteMany({ title: { $regex: /^PH12A_/ } });
-    await ResearchDomain.deleteMany({ name: { $regex: /^PH12A_/ } });
+    // Cleanup Phase 12 test records
+    await Publication.deleteMany({ title: { $regex: /^PH12/ } });
+    await ResearchDomain.deleteMany({ name: { $regex: /^PH12/ } });
+    await User.deleteMany({ email: { $regex: /ph12_test/ } });
+
+    // Seed test admin user & token
+    adminUser = await User.create({
+      name: 'PH12 Admin User',
+      email: 'ph12_test_admin@university.edu',
+      password: 'Password123!',
+      role: 'admin'
+    });
+    adminToken = jwt.sign({ id: adminUser._id }, JWT_SECRET, { expiresIn: '1h' });
+
+    // Seed test faculty user & token
+    facultyUser = await User.create({
+      name: 'PH12 Faculty User',
+      email: 'ph12_test_faculty@university.edu',
+      password: 'Password123!',
+      role: 'faculty'
+    });
+    facultyToken = jwt.sign({ id: facultyUser._id }, JWT_SECRET, { expiresIn: '1h' });
+
+    // Unauthorized role token (e.g. student role in DB)
+    const studentId = new mongoose.Types.ObjectId();
+    await User.collection.insertOne({
+      _id: studentId,
+      name: 'PH12 Student User',
+      email: 'ph12_test_student@university.edu',
+      role: 'student',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    unauthorizedToken = jwt.sign({ id: studentId }, JWT_SECRET, { expiresIn: '1h' });
 
     // Seed domain records
     testDomainAI = await ResearchDomain.create({
@@ -79,8 +119,9 @@ describe('Phase 12A — Research Domain Classification Foundation', () => {
   });
 
   after(async () => {
-    await Publication.deleteMany({ title: { $regex: /^PH12A_/ } });
-    await ResearchDomain.deleteMany({ name: { $regex: /^PH12A_/ } });
+    await Publication.deleteMany({ title: { $regex: /^PH12/ } });
+    await ResearchDomain.deleteMany({ name: { $regex: /^PH12/ } });
+    await User.deleteMany({ email: { $regex: /ph12_test/ } });
 
     if (server) {
       await new Promise(resolve => server.close(resolve));
@@ -604,5 +645,270 @@ describe('Phase 12A — Research Domain Classification Foundation', () => {
 
     const all = getAllDomains();
     assert.strictEqual(all.length, 15);
+  });
+
+  // =========================================================================
+  // PHASE 12C: APPLY & STORE RESEARCH DOMAIN PREDICTIONS (TESTS 20 - 26)
+  // =========================================================================
+
+  // 20. Authentication and Authorization on POST /api/publications/:id/research-domains/predict
+  test('20. POST /api/publications/:id/research-domains/predict requires authentication and authorization', async () => {
+    const pub = await Publication.create({
+      title: 'PH12_Auth_Test_Publication_Cybersecurity_Encryption',
+      year: 2024,
+      authors: ['Security Researcher'],
+      abstract: 'Public key cryptography and encryption protocols against zero-day exploits.',
+      keywords: ['Cybersecurity', 'Cryptography'],
+      source: 'manual'
+    });
+
+    // 1. Unauthenticated request -> 401
+    const resNoAuth = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict`, {
+      method: 'POST'
+    });
+    assert.strictEqual(resNoAuth.status, 401);
+    const bodyNoAuth = await resNoAuth.json();
+    assert.strictEqual(bodyNoAuth.success, false);
+
+    // 2. Unauthorized role request -> 403
+    const resForbidden = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${unauthorizedToken}` }
+    });
+    assert.strictEqual(resForbidden.status, 403);
+    const bodyForbidden = await resForbidden.json();
+    assert.strictEqual(bodyForbidden.success, false);
+
+    // 3. Faculty user request -> 200
+    const resFaculty = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${facultyToken}` }
+    });
+    assert.strictEqual(resFaculty.status, 200);
+
+    // 4. Admin user request -> 200
+    const resAdmin = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert.strictEqual(resAdmin.status, 200);
+  });
+
+  // 21. Error Handling: Missing publication and invalid publication ID
+  test('21. Handles missing publication (404) and invalid publication ID format (400)', async () => {
+    // 1. Invalid ID format -> 400
+    const resInvalid = await fetch(`${baseUrl}/api/publications/not-a-valid-id/research-domains/predict`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert.strictEqual(resInvalid.status, 400);
+    const bodyInvalid = await resInvalid.json();
+    assert.strictEqual(bodyInvalid.success, false);
+
+    // 2. Non-existent ObjectId -> 404
+    const nonExistentId = new mongoose.Types.ObjectId();
+    const resNotFound = await fetch(`${baseUrl}/api/publications/${nonExistentId}/research-domains/predict`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert.strictEqual(resNotFound.status, 404);
+    const bodyNotFound = await resNotFound.json();
+    assert.strictEqual(bodyNotFound.success, false);
+    assert.strictEqual(bodyNotFound.message, 'Publication not found');
+  });
+
+  // 22. Successful Prediction Storage and Preservation of Manual Domains
+  test('22. Successfully calculates, stores predictedResearchDomains, and preserves manual researchDomains', async () => {
+    // Create publication with an existing verified manual domain (testDomainAI)
+    const pub = await Publication.create({
+      title: 'PH12_IoT_Sensor_Networks_For_Smart_Cities_Actuation',
+      year: 2024,
+      authors: ['Dr. Smart Sensing'],
+      abstract: 'We present an Internet of Things architecture with wireless sensor networks and actuators deployed across municipal smart city infrastructures.',
+      keywords: ['Internet of Things', 'Wireless Sensor Network', 'Smart City'],
+      researchDomains: testDomainAI ? [testDomainAI._id] : [],
+      source: 'manual'
+    });
+
+    const res = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert.strictEqual(res.status, 200);
+
+    const body = await res.json();
+    assert.strictEqual(body.success, true);
+    assert.strictEqual(body.data.publicationId, pub._id.toString());
+    assert.ok(body.data.predictions.length > 0, 'Should return predicted domains');
+    assert.strictEqual(body.data.saved, true);
+
+    // Verify stored publication in MongoDB
+    const pubInDb = await Publication.findById(pub._id);
+    assert.ok(pubInDb, 'Publication must exist in DB');
+
+    // 1. Check predictedResearchDomains in DB
+    assert.ok(pubInDb.predictedResearchDomains.length > 0);
+    const iotPred = pubInDb.predictedResearchDomains.find(p => p.name === 'Internet of Things');
+    assert.ok(iotPred, 'Must store Internet of Things prediction');
+    assert.ok(iotPred.confidence >= 0.70);
+    if (testDomainIoT) {
+      assert.strictEqual(iotPred.domain.toString(), testDomainIoT._id.toString(), 'Linked domain reference matches MongoDB ResearchDomain');
+    }
+    assert.ok(Array.isArray(iotPred.matchedKeywords));
+    assert.ok(Array.isArray(iotPred.matchedPhrases));
+    assert.ok(Array.isArray(iotPred.matchedAcronyms));
+    assert.ok(iotPred.signals && Array.isArray(iotPred.signals.titleMatches));
+    assert.strictEqual(iotPred.classifierVersion, CLASSIFIER_VERSION);
+    assert.strictEqual(iotPred.classificationMethod, CLASSIFICATION_METHOD);
+    assert.ok(iotPred.predictedAt instanceof Date);
+
+    // 2. Check predictionMetadata in DB
+    assert.ok(pubInDb.predictionMetadata);
+    assert.strictEqual(pubInDb.predictionMetadata.classifierVersion, CLASSIFIER_VERSION);
+    assert.strictEqual(pubInDb.predictionMetadata.classificationMethod, CLASSIFICATION_METHOD);
+    assert.ok(pubInDb.predictionMetadata.predictedAt instanceof Date);
+
+    // 3. CRITICAL: Verify manual researchDomains remain completely untouched
+    if (testDomainAI) {
+      assert.strictEqual(pubInDb.researchDomains.length, 1);
+      assert.strictEqual(pubInDb.researchDomains[0].toString(), testDomainAI._id.toString(), 'Manual research domain must NOT be overwritten or merged');
+    }
+  });
+
+  // 23. Repeated Prediction Safely Updates Entries Without Duplication
+  test('23. Repeated prediction updates existing predictions without duplicating entries or publications', async () => {
+    const pub = await Publication.create({
+      title: 'PH12_Repeated_Prediction_Blockchain_Smart_Contracts',
+      year: 2024,
+      authors: ['Dr. DLT'],
+      abstract: 'Distributed ledgers, consensus mechanisms, and Ethereum smart contracts for decentralized finance.',
+      keywords: ['Blockchain', 'Smart Contracts', 'DeFi'],
+      source: 'manual'
+    });
+
+    // First prediction call
+    const res1 = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert.strictEqual(res1.status, 200);
+
+    const docAfterFirst = await Publication.findById(pub._id);
+    const countAfterFirst = docAfterFirst.predictedResearchDomains.length;
+    assert.ok(countAfterFirst > 0);
+
+    // Second prediction call with maxDomains=1 option
+    const res2 = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict?maxDomains=1`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert.strictEqual(res2.status, 200);
+
+    const docAfterSecond = await Publication.findById(pub._id);
+    // Should have replaced, not appended
+    assert.strictEqual(docAfterSecond.predictedResearchDomains.length, 1, 'Should update and replace, not duplicate or append entries');
+    assert.strictEqual(docAfterSecond.predictedResearchDomains[0].name, 'Blockchain');
+
+    // Total documents in collection for this ID is still 1
+    const totalMatching = await Publication.countDocuments({ _id: pub._id });
+    assert.strictEqual(totalMatching, 1, 'Must not duplicate publication records');
+  });
+
+  // 24. Configurable Options (minConfidence, maxDomains, includeEvidence)
+  test('24. Respects minConfidence, maxDomains, and includeEvidence options', async () => {
+    const pub = await Publication.create({
+      title: 'PH12_Multi_Domain_Deep_Learning_Robotics_Vision',
+      year: 2024,
+      authors: ['Dr. Multi'],
+      abstract: 'Convolutional neural networks and object detection applied to mobile robots navigating using SLAM and visual scene understanding.',
+      keywords: ['Machine Learning', 'Computer Vision', 'Robotics'],
+      source: 'manual'
+    });
+
+    // 1. High minConfidence threshold (0.95)
+    const resStrict = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict?minConfidence=0.95`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const bodyStrict = await resStrict.json();
+    assert.strictEqual(bodyStrict.success, true);
+    for (const p of bodyStrict.data.predictions) {
+      assert.ok(p.confidence >= 0.95);
+    }
+
+    // 2. maxDomains limit = 1
+    const resLimit1 = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict?maxDomains=1`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const bodyLimit1 = await resLimit1.json();
+    assert.strictEqual(bodyLimit1.success, true);
+    assert.strictEqual(bodyLimit1.data.predictions.length, 1);
+
+    // 3. includeEvidence = false
+    const resNoEv = await fetch(`${baseUrl}/api/publications/${pub._id}/research-domains/predict?includeEvidence=false`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const bodyNoEv = await resNoEv.json();
+    assert.strictEqual(bodyNoEv.success, true);
+    assert.ok(bodyNoEv.data.predictions.length > 0);
+    assert.strictEqual(bodyNoEv.data.predictions[0].signals, undefined);
+    assert.strictEqual(bodyNoEv.data.predictions[0].matchedKeywords, undefined);
+  });
+
+  // 25. Insufficient Text Handled Gracefully
+  test('25. Handles publication with insufficient text gracefully without errors', async () => {
+    const pubEmpty = await Publication.create({
+      title: 'PH12_Empty_Text',
+      year: 2024,
+      authors: ['No Info'],
+      abstract: '',
+      keywords: [],
+      source: 'manual'
+    });
+
+    const res = await fetch(`${baseUrl}/api/publications/${pubEmpty._id}/research-domains/predict`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert.strictEqual(res.status, 200);
+
+    const body = await res.json();
+    assert.strictEqual(body.success, true);
+    assert.strictEqual(body.data.hasPredictions, false);
+    assert.strictEqual(body.data.predictions.length, 0);
+
+    const docInDb = await Publication.findById(pubEmpty._id);
+    assert.strictEqual(docInDb.predictedResearchDomains.length, 0);
+  });
+
+  // 26. Direct Service predictAndStorePublicationResearchDomains
+  test('26. Service function predictAndStorePublicationResearchDomains executes directly and safely', async () => {
+    const pub = await Publication.create({
+      title: 'PH12_Direct_Service_Cloud_Virtualization_Containers',
+      year: 2024,
+      authors: ['Cloud Specialist'],
+      abstract: 'Serverless computing, Kubernetes clusters, and microservices in cloud infrastructure.',
+      keywords: ['Cloud Computing', 'Docker', 'Kubernetes'],
+      source: 'manual'
+    });
+
+    const result = await predictAndStorePublicationResearchDomains(pub._id.toString());
+    assert.ok(result);
+    assert.strictEqual(result.saved, true);
+    assert.ok(result.predictions.length > 0);
+    assert.strictEqual(result.predictions[0].name, 'Cloud Computing');
+    assert.ok(result.predictions[0].confidence >= 0.70);
+
+    // Verify rejection on invalid ID format
+    await assert.rejects(
+      async () => {
+        await predictAndStorePublicationResearchDomains('invalid-non-existent-id');
+      },
+      (err) => {
+        return err.status === 400 && err.message.includes('Invalid publication ID');
+      }
+    );
   });
 });
