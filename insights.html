@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Insights · Research Analytics Platform</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">RA</div>
+      <div class="brand-text">
+        <div class="name">Research Analytics</div>
+        <div class="sub">Faculty Profiling</div>
+      </div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
+      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
+      <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
+    </nav>
+    <nav class="nav-group">
+      <div class="nav-label">Research insights</div>
+      <a class="nav-link" href="#emerging"><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="#collaborators"><span class="ico">✦</span> Collaborator suggestions</a>
+      <a class="nav-link" href="#forecast"><span class="ico">▤</span> Productivity forecast</a>
+      <a class="nav-link" href="#assistant"><span class="ico">✳</span> Research assistant</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="progress-label"><span>Research analytics</span><span>Live data</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="topbar-title">Research Insights</div>
+        <div class="topbar-sub">Emerging domains · faculty connections · publication trends</div>
+      </div>
+      <div class="topbar-right">
+        <div class="avatar-chip">
+          <div class="dot">RA</div>
+          <div class="who">Research analytics<div class="role">Live services</div></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <span class="eyebrow">Advanced analytics</span>
+        <h1 style="font-size:22px;">Research insights</h1>
+        <div class="desc">Rule-based and data-driven views from indexed publications, faculty research domains, and existing analytics.</div>
+      </div>
+
+      <div class="filters-row insights-context">
+        <label for="facultyContext">Faculty context</label>
+        <select id="facultyContext" aria-label="Faculty context">
+          <option value="">Loading faculty…</option>
+        </select>
+        <span class="insight-status" id="contextStatus" role="status">Loading faculty records…</span>
+      </div>
+
+      <section class="card insights-section" id="emerging" aria-labelledby="emergingHeading">
+        <div class="card-head insights-heading">
+          <div>
+            <h2 id="emergingHeading">Emerging research</h2>
+            <div class="hint">Recent growth across predicted research domains</div>
+          </div>
+          <button class="btn btn-ghost" id="refreshEmerging" type="button">Refresh</button>
+        </div>
+        <div class="insight-status" id="emergingStatus" role="status" aria-live="polite">Loading emerging research…</div>
+        <div class="insights-table-wrap" id="emergingTableWrap" hidden>
+          <table>
+            <thead><tr><th>Rank</th><th>Research domain</th><th>Latest year</th><th>Publications</th><th>Growth</th><th>Trend</th><th>Score</th></tr></thead>
+            <tbody id="emergingRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="grid grid-2 insights-grid">
+        <section class="card card-pad insights-section" id="collaborators" aria-labelledby="collaboratorsHeading">
+          <div class="insights-heading">
+            <div>
+              <h2 id="collaboratorsHeading">Collaborator suggestions</h2>
+              <div class="hint">Faculty connected by shared research domains</div>
+            </div>
+            <button class="btn btn-ghost" id="refreshCollaborators" type="button" disabled>Refresh</button>
+          </div>
+          <div class="insight-status" id="collaboratorStatus" role="status" aria-live="polite">Select a faculty member to see recommendations.</div>
+          <div class="insights-table-wrap" id="collaboratorTableWrap" hidden>
+            <table>
+              <thead><tr><th>Faculty</th><th>Shared domains</th><th>Score</th><th>Prior collaborations</th></tr></thead>
+              <tbody id="collaboratorRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card card-pad insights-section" id="forecast" aria-labelledby="forecastHeading">
+          <div class="insights-heading">
+            <div>
+              <h2 id="forecastHeading">Productivity forecast</h2>
+              <div class="hint">Linear baseline from yearly publication history</div>
+            </div>
+            <button class="btn btn-ghost" id="refreshForecast" type="button" disabled>Refresh</button>
+          </div>
+          <div class="insight-status" id="forecastStatus" role="status" aria-live="polite">Select a faculty member to see a forecast.</div>
+          <div id="forecastContent" hidden>
+            <p class="forecast-summary" id="forecastSummary"></p>
+            <dl class="insight-metrics" id="forecastMetrics"></dl>
+            <div class="insights-table-wrap">
+              <table>
+                <thead><tr><th>Year</th><th>Publications</th><th>History</th></tr></thead>
+                <tbody id="historyRows"></tbody>
+              </table>
+            </div>
+            <div class="footnote" id="rSquaredNote">R² measures how well historical publication counts fit the linear trend.</div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card card-pad insights-section" id="assistant" aria-labelledby="assistantHeading">
+        <div class="insights-heading">
+          <div>
+            <h2 id="assistantHeading">Research assistant</h2>
+            <div class="hint">Ask a question about existing research analytics</div>
+          </div>
+        </div>
+        <form id="assistantForm" class="assistant-form">
+          <div class="field assistant-faculty-field">
+            <label for="assistantFaculty">Faculty context (optional)</label>
+            <select id="assistantFaculty"><option value="">Institution-wide</option></select>
+          </div>
+          <div class="field assistant-question-field">
+            <label for="assistantQuestion">Research question</label>
+            <textarea id="assistantQuestion" rows="3" required maxlength="1000" placeholder="For example: What are the emerging research areas?"></textarea>
+          </div>
+          <button class="btn btn-primary" id="askAssistant" type="submit">Ask question</button>
+        </form>
+        <div class="assistant-suggestions" aria-label="Example questions">
+          <button type="button" data-question="How many publications are in the platform?">Publications</button>
+          <button type="button" data-question="How many citations are in the platform?">Citations</button>
+          <button type="button" data-question="What research domains are represented?">Research domains</button>
+          <button type="button" data-question="What are the emerging research areas?">Emerging research</button>
+          <button type="button" data-question="Who can collaborate with me?">Collaborators</button>
+          <button type="button" data-question="What is my productivity forecast?">Forecast</button>
+        </div>
+        <div class="insight-status" id="assistantStatus" role="status" aria-live="polite">Answers use existing analytics data and deterministic intent matching.</div>
+        <div class="assistant-result" id="assistantResult" hidden>
+          <div class="assistant-answer" id="assistantAnswer"></div>
+          <div class="assistant-meta" id="assistantMeta"></div>
+          <details>
+            <summary>View returned data</summary>
+            <pre class="assistant-data" id="assistantData"></pre>
+          </details>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+  const apiBase = window.APP_CONFIG.API_BASE_URL.replace(/\/$/, '');
+  const facultyContext = document.getElementById('facultyContext');
+  const assistantFaculty = document.getElementById('assistantFaculty');
+  const contextStatus = document.getElementById('contextStatus');
+  const emergingStatus = document.getElementById('emergingStatus');
+  const emergingRows = document.getElementById('emergingRows');
+  const emergingTableWrap = document.getElementById('emergingTableWrap');
+  const collaboratorStatus = document.getElementById('collaboratorStatus');
+  const collaboratorRows = document.getElementById('collaboratorRows');
+  const collaboratorTableWrap = document.getElementById('collaboratorTableWrap');
+  const forecastStatus = document.getElementById('forecastStatus');
+  const forecastContent = document.getElementById('forecastContent');
+  let faculty = [];
+
+  const requestJson = async (url, options = {}) => {
+    let response;
+    try {
+      response = await fetch(url, options);
+    } catch {
+      throw new Error('Could not connect to the research analytics service.');
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.success === false) {
+      throw new Error(payload.message || `Request failed with status ${response.status}.`);
+    }
+    return payload.data;
+  };
+
+  const setCell = (row, value, className = '') => {
+    const cell = document.createElement('td');
+    cell.textContent = value === null || value === undefined || value === '' ? '—' : String(value);
+    if (className) cell.className = className;
+    row.appendChild(cell);
+    return cell;
+  };
+
+  const showStatus = (element, message, state = '') => {
+    element.textContent = message;
+    element.className = `insight-status${state ? ` ${state}` : ''}`;
+  };
+
+  const loadEmergingResearch = async () => {
+    emergingTableWrap.hidden = true;
+    showStatus(emergingStatus, 'Loading emerging research…');
+    try {
+      const results = await requestJson(`${apiBase}/analytics/emerging-research`);
+      const emerging = results.filter(item => item.isEmerging);
+      emergingRows.replaceChildren();
+      if (!emerging.length) {
+        showStatus(emergingStatus, 'No emerging research domains are currently identified.');
+        return;
+      }
+      for (const item of emerging) {
+        const row = document.createElement('tr');
+        setCell(row, item.rank);
+        setCell(row, item.domain);
+        setCell(row, item.latestYear);
+        setCell(row, item.latestCount);
+        setCell(row, `${item.growthRate}%`);
+        setCell(row, item.trendDirection);
+        setCell(row, item.emergingScore);
+        emergingRows.appendChild(row);
+      }
+      emergingTableWrap.hidden = false;
+      showStatus(emergingStatus, `${emerging.length} emerging ${emerging.length === 1 ? 'domain' : 'domains'} identified.`);
+    } catch (error) {
+      showStatus(emergingStatus, error.message, 'error');
+    }
+  };
+
+  const loadRecommendations = async () => {
+    const facultyId = facultyContext.value;
+    collaboratorRows.replaceChildren();
+    collaboratorTableWrap.hidden = true;
+    const button = document.getElementById('refreshCollaborators');
+    button.disabled = !facultyId;
+    if (!facultyId) {
+      showStatus(collaboratorStatus, 'Select a faculty member to see recommendations.');
+      return;
+    }
+    showStatus(collaboratorStatus, 'Loading collaborator suggestions…');
+    try {
+      const results = await requestJson(`${apiBase}/analytics/collaborator-recommendations/${encodeURIComponent(facultyId)}`);
+      if (!results.length) {
+        showStatus(collaboratorStatus, 'No faculty with shared research domains were found.');
+        return;
+      }
+      for (const item of results) {
+        const row = document.createElement('tr');
+        setCell(row, item.name);
+        const domainCell = setCell(row, item.sharedDomains.join(', '));
+        domainCell.title = item.recommendationReason || item.reason || '';
+        setCell(row, item.sharedDomainCount ?? item.score);
+        const countCell = setCell(row, item.collaborationCount);
+        countCell.title = item.existingCollaboration ? 'Existing collaboration recorded' : 'No existing collaboration recorded';
+        collaboratorRows.appendChild(row);
+        const reasonRow = document.createElement('tr');
+        const reasonCell = document.createElement('td');
+        reasonCell.colSpan = 4;
+        reasonCell.className = 'recommendation-reason';
+        reasonCell.textContent = `${item.recommendationReason || item.reason || 'Shared research domains'} · score ${item.score} · ${item.existingCollaboration ? 'Existing collaboration' : 'No recorded collaboration'}`;
+        reasonRow.appendChild(reasonCell);
+        collaboratorRows.appendChild(reasonRow);
+      }
+      collaboratorTableWrap.hidden = false;
+      showStatus(collaboratorStatus, `${results.length} potential ${results.length === 1 ? 'collaborator' : 'collaborators'} found.`);
+    } catch (error) {
+      showStatus(collaboratorStatus, error.message, 'error');
+    }
+  };
+
+  const loadForecast = async () => {
+    const facultyId = facultyContext.value;
+    forecastContent.hidden = true;
+    const button = document.getElementById('refreshForecast');
+    button.disabled = !facultyId;
+    if (!facultyId) {
+      showStatus(forecastStatus, 'Select a faculty member to see a productivity forecast.');
+      return;
+    }
+    showStatus(forecastStatus, 'Loading publication history and forecast…');
+    try {
+      const result = await requestJson(`${apiBase}/analytics/productivity-forecast/${encodeURIComponent(facultyId)}`);
+      document.getElementById('forecastSummary').textContent = result.forecastSummary || result.message || '';
+      const metrics = document.getElementById('forecastMetrics');
+      metrics.replaceChildren();
+      const metricValues = result.forecastAvailable
+        ? [
+            ['Forecast year', result.forecastYear],
+            ['Forecast publications', result.forecastPublicationCount],
+            ['Trend', result.trendDirection],
+            ['Annual average', result.averageAnnualPublications],
+            ['Annual change', result.annualChange],
+            ['R² fit', result.rSquared]
+          ]
+        : [['Historical years', result.historicalYearCount], ['Recorded publications', result.historicalPublicationCount]];
+      for (const [label, value] of metricValues) {
+        const term = document.createElement('dt');
+        const detail = document.createElement('dd');
+        term.textContent = label;
+        detail.textContent = value === null || value === undefined ? '—' : String(value);
+        metrics.append(term, detail);
+      }
+      const historyRows = document.getElementById('historyRows');
+      historyRows.replaceChildren();
+      const history = result.historicalData || [];
+      const maximum = Math.max(1, ...history.map(item => item.publicationCount));
+      for (const item of history) {
+        const row = document.createElement('tr');
+        setCell(row, item.year);
+        setCell(row, item.publicationCount);
+        const barCell = document.createElement('td');
+        const track = document.createElement('div');
+        track.className = 'history-track';
+        const bar = document.createElement('span');
+        bar.style.width = `${Math.max(0, Math.min(100, (item.publicationCount / maximum) * 100))}%`;
+        track.appendChild(bar);
+        barCell.appendChild(track);
+        row.appendChild(barCell);
+        historyRows.appendChild(row);
+      }
+      forecastContent.hidden = false;
+      showStatus(forecastStatus, result.forecastAvailable
+        ? `Forecast based on ${result.historicalYearCount} historical years.`
+        : 'Forecast unavailable: at least two historical years are required.');
+    } catch (error) {
+      showStatus(forecastStatus, error.message, 'error');
+    }
+  };
+
+  const loadFaculty = async () => {
+    try {
+      faculty = await requestJson(`${apiBase}/faculty`);
+      facultyContext.replaceChildren(new Option('Select a faculty member', ''));
+      assistantFaculty.replaceChildren(new Option('Institution-wide', ''));
+      for (const person of faculty) {
+        facultyContext.add(new Option(`${person.name} · ${person.department}`, person._id));
+        assistantFaculty.add(new Option(`${person.name} · ${person.department}`, person._id));
+      }
+      const preferredId = new URLSearchParams(window.location.search).get('facultyId');
+      if (preferredId && faculty.some(person => person._id === preferredId)) {
+        facultyContext.value = preferredId;
+        assistantFaculty.value = preferredId;
+      }
+      showStatus(contextStatus, `${faculty.length} faculty records available.`);
+    } catch (error) {
+      facultyContext.replaceChildren(new Option('Faculty unavailable', ''));
+      document.getElementById('assistantFaculty').replaceChildren(new Option('Faculty unavailable', ''));
+      showStatus(contextStatus, error.message, 'error');
+    }
+    await Promise.all([loadRecommendations(), loadForecast()]);
+  };
+
+  document.getElementById('assistantForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const question = document.getElementById('assistantQuestion').value.trim();
+    const facultyId = assistantFaculty.value;
+    const submit = document.getElementById('askAssistant');
+    const result = document.getElementById('assistantResult');
+    result.hidden = true;
+    if (!question) {
+      showStatus(document.getElementById('assistantStatus'), 'Enter a research question to continue.', 'error');
+      return;
+    }
+    submit.disabled = true;
+    showStatus(document.getElementById('assistantStatus'), 'Checking existing research data…');
+    try {
+      const answer = await requestJson(`${apiBase}/analytics/research-assistant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, ...(facultyId ? { facultyId } : {}) })
+      });
+      document.getElementById('assistantAnswer').textContent = answer.answer;
+      document.getElementById('assistantMeta').textContent = `${answer.intent} · Sources: ${answer.sources.join(', ') || 'none'}`;
+      document.getElementById('assistantData').textContent = answer.data === null
+        ? 'No structured data for this question.'
+        : JSON.stringify(answer.data, null, 2);
+      result.hidden = false;
+      showStatus(document.getElementById('assistantStatus'), 'Answer generated from available project data.');
+    } catch (error) {
+      showStatus(document.getElementById('assistantStatus'), error.message, 'error');
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  for (const button of document.querySelectorAll('[data-question]')) {
+    button.addEventListener('click', () => {
+      document.getElementById('assistantQuestion').value = button.dataset.question;
+      document.getElementById('assistantQuestion').focus();
+    });
+  }
+
+  facultyContext.addEventListener('change', () => {
+    const selected = facultyContext.value;
+    if (selected) assistantFaculty.value = selected;
+    loadRecommendations();
+    loadForecast();
+  });
+  document.getElementById('refreshEmerging').addEventListener('click', loadEmergingResearch);
+  document.getElementById('refreshCollaborators').addEventListener('click', loadRecommendations);
+  document.getElementById('refreshForecast').addEventListener('click', loadForecast);
+
+  loadFaculty();
+  loadEmergingResearch();
+})();
+</script>
+</body>
+</html>

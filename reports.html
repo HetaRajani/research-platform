@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reports · Research Analytics Platform</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
 </head>
 <body>
 
@@ -25,9 +26,11 @@
       <a class="nav-link active" href="reports.html"><span class="ico">▦</span> Reports</a>
     </nav>
     <nav class="nav-group">
-      <div class="nav-label">Planned · AI Module</div>
-      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">✦ Collaborator Suggestions</span>
-      <span class="nav-link" style="opacity:.45;cursor:not-allowed;">↗ Productivity Forecast</span>
+      <div class="nav-label">Research insights</div>
+      <a class="nav-link" href="insights.html#emerging"><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="insights.html#collaborators"><span class="ico">✦</span> Collaborator suggestions</a>
+      <a class="nav-link" href="insights.html#forecast"><span class="ico">▤</span> Productivity forecast</a>
+      <a class="nav-link" href="insights.html#assistant"><span class="ico">✳</span> Research assistant</a>
     </nav>
     <div class="sidebar-foot">
       <div class="progress-label"><span>Sprint 1 progress</span><span>Week 4 / 4</span></div>
@@ -53,7 +56,7 @@
       <div class="page-head">
         <span class="eyebrow">Report builder</span>
         <h1 style="font-size:22px;">Generate a research summary report</h1>
-        <div class="desc">Configure scope and export. In this milestone the builder is UI-only — it previews the report layout using sample data; PDF/Excel export is planned for Sprint 2.</div>
+        <div class="desc">Build a review-ready report from current faculty, publication and analytics records.</div>
       </div>
 
       <div class="grid grid-2">
@@ -69,74 +72,467 @@
             </select>
           </div>
           <div class="field">
-            <label>Scope</label>
+            <label for="reportScope">Scope</label>
             <select id="reportScope">
-              <option value="all">All departments</option>
-              <option value="F001">Dr. Anjali Mehta only</option>
-              <option value="F004">Dr. Vikram Desai only</option>
+              <option value="all">Institution-wide</option>
             </select>
           </div>
           <div class="field">
             <label>Period</label>
             <select id="reportPeriod">
-              <option>2021 – 2025</option>
-              <option>2023 – 2025</option>
-              <option>2025 only</option>
+              <option value="all">All available years</option>
+              <option value="range:2021:2025">2021 – 2025</option>
+              <option value="range:2023:2025">2023 – 2025</option>
+              <option value="year:2025">2025 only</option>
             </select>
           </div>
-          <button class="btn btn-primary" id="genBtn" style="width:100%;justify-content:center;padding:11px;">Preview report</button>
+          <button class="btn btn-primary" id="genBtn" style="width:100%;justify-content:center;padding:11px;">Generate live report</button>
+          <div class="report-status" id="reportStatus" role="status" aria-live="polite">Loading live faculty records…</div>
         </div>
 
         <div class="card card-pad">
-          <h3>Export format</h3>
-          <div class="hint" style="margin-bottom:14px;">Disabled in this build — arriving Sprint 2</div>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed;justify-content:flex-start;">⇩ Export as PDF</button>
-            <button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed;justify-content:flex-start;">⇩ Export as Excel (.xlsx)</button>
-            <button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed;justify-content:flex-start;">✉ Email to administrator</button>
+          <h3>Print and export</h3>
+          <div class="hint" style="margin-bottom:14px;">Print to paper or choose “Save as PDF” in your browser’s print dialog. CSV includes the current preview’s tabular values.</div>
+          <div class="report-actions">
+            <button class="btn btn-ghost" id="printReport" type="button" disabled>Print / Save as PDF</button>
+            <button class="btn btn-ghost" id="exportCsv" type="button" disabled>Download CSV</button>
           </div>
         </div>
       </div>
 
-      <div class="card card-pad" id="previewCard" style="margin-top:20px;display:none;">
-        <span class="eyebrow">Preview</span>
-        <h3 id="previewTitle" style="margin-bottom:14px;"></h3>
+      <div class="card card-pad report-preview" id="previewCard" style="margin-top:20px;display:none;">
+        <div class="report-preview-header">
+          <div>
+            <span class="eyebrow">Live report preview</span>
+            <h2 id="previewTitle"></h2>
+            <div class="report-generated" id="reportGenerated"></div>
+          </div>
+          <div class="report-actions report-actions-preview">
+            <button class="btn btn-ghost" id="printReportPreview" type="button">Print</button>
+            <button class="btn btn-ghost" id="exportCsvPreview" type="button">CSV</button>
+          </div>
+        </div>
+        <div class="report-data-note" id="reportDataNote"></div>
         <div id="previewBody"></div>
       </div>
 
-      <div class="footnote">Prototype build · report generation logic and export pipeline are scheduled for the next development sprint.</div>
+      <div class="footnote report-screen-only">Report values are retrieved from the connected research analytics service. Faculty profile aggregates and linked publication-record totals are shown separately when both are available.</div>
     </main>
   </div>
 </div>
 
-<script src="js/data.js"></script>
 <script>
-  document.getElementById('genBtn').addEventListener('click', function(){
-    const type = document.getElementById('reportType').value;
-    const scope = document.getElementById('reportScope').value;
-    const period = document.getElementById('reportPeriod').value;
+  (() => {
+    const apiBase = window.APP_CONFIG.API_BASE_URL.replace(/\/$/, '');
+    const scopeSelect = document.getElementById('reportScope');
+    const periodSelect = document.getElementById('reportPeriod');
+    const previewCard = document.getElementById('previewCard');
+    const previewBody = document.getElementById('previewBody');
+    const reportStatus = document.getElementById('reportStatus');
+    const printButtons = [document.getElementById('printReport'), document.getElementById('printReportPreview')];
+    const csvButtons = [document.getElementById('exportCsv'), document.getElementById('exportCsvPreview')];
+    let facultyRecords = [];
+    let currentCsvRows = [];
 
-    const list = scope === 'all' ? FACULTY : FACULTY.filter(f=>f.id===scope);
-    const totalPub = list.reduce((s,f)=>s+f.totalPublications,0);
-    const totalCit = list.reduce((s,f)=>s+f.totalCitations,0);
-    const avgH = (list.reduce((s,f)=>s+f.hIndex,0)/list.length).toFixed(1);
+    const setStatus = (message, isError = false) => {
+      reportStatus.textContent = message;
+      reportStatus.className = `report-status${isError ? ' error' : ''}`;
+    };
 
-    document.getElementById('previewTitle').textContent = `${type} — ${period}`;
-    document.getElementById('previewBody').innerHTML = `
-      <div class="grid grid-3" style="margin-bottom:16px;">
-        <div class="stat-card"><div class="label">Faculty in scope</div><div class="value">${list.length}</div></div>
-        <div class="stat-card"><div class="label">Total publications</div><div class="value">${totalPub}</div></div>
-        <div class="stat-card"><div class="label">Total citations</div><div class="value">${totalCit}</div></div>
-      </div>
-      <table>
-        <thead><tr><th>Faculty</th><th>Department</th><th>h-index</th><th>Publications</th><th>Citations</th></tr></thead>
-        <tbody>
-          ${list.map(f=>`<tr><td>${f.name}</td><td>${f.department}</td><td>${f.hIndex}</td><td>${f.totalPublications}</td><td>${f.totalCitations}</td></tr>`).join('')}
-        </tbody>
-      </table>
-    `;
-    document.getElementById('previewCard').style.display = 'block';
-  });
+    const getJson = async path => {
+      let response;
+      try {
+        response = await fetch(`${apiBase}${path}`);
+      } catch {
+        throw new Error('Cannot connect to the research analytics service. Check the API server and try again.');
+      }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed (${response.status}).`);
+      }
+      return result;
+    };
+
+    const addText = (parent, tag, value, className) => {
+      const element = document.createElement(tag);
+      element.textContent = value === null || value === undefined || value === '' ? 'Not available' : String(value);
+      if (className) element.className = className;
+      parent.appendChild(element);
+      return element;
+    };
+
+    const createSection = (title, note) => {
+      const section = document.createElement('section');
+      section.className = 'report-section';
+      addText(section, 'h3', title);
+      if (note) addText(section, 'p', note, 'report-section-note');
+      return section;
+    };
+
+    const createTable = (headers, rows) => {
+      if (!rows.length) return null;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'report-table-wrap';
+      const table = document.createElement('table');
+      const head = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      for (const header of headers) addText(headRow, 'th', header);
+      head.appendChild(headRow);
+      const body = document.createElement('tbody');
+      for (const values of rows) {
+        const row = document.createElement('tr');
+        for (const value of values) addText(row, 'td', value);
+        body.appendChild(row);
+      }
+      table.append(head, body);
+      wrapper.appendChild(table);
+      return wrapper;
+    };
+
+    const addRowsToCsv = (sectionName, headers, rows) => {
+      currentCsvRows.push([sectionName], headers, ...rows, []);
+    };
+
+    const addMessage = (section, message) => addText(section, 'p', message, 'report-empty');
+
+    const periodDescription = () => periodSelect.selectedOptions[0]?.textContent || 'All available years';
+    const periodFilter = year => {
+      const period = periodSelect.value;
+      const numericYear = Number(year);
+      if (!Number.isInteger(numericYear)) return false;
+      if (period === 'all') return true;
+      if (period.startsWith('year:')) return numericYear === Number(period.split(':')[1]);
+      if (period.startsWith('range:')) {
+        const [, firstYear, lastYear] = period.split(':').map(Number);
+        return numericYear >= firstYear && numericYear <= lastYear;
+      }
+      return true;
+    };
+
+    const loadAllPublications = async facultyId => {
+      const all = [];
+      let page = 1;
+      let pages = 1;
+      do {
+        const query = new URLSearchParams({ facultyId, page: String(page), limit: '100' });
+        const result = await getJson(`/publications?${query}`);
+        all.push(...(result.data || []));
+        pages = result.pagination?.pages || 1;
+        page += 1;
+      } while (page <= pages);
+      return all.filter(publication => publication.isDuplicate !== true && periodFilter(publication.year));
+    };
+
+    const facultyReport = async facultyId => {
+      const [facultyResult, publications, collaborationResult, forecastResult, emergingResult] = await Promise.all([
+        getJson(`/faculty/${encodeURIComponent(facultyId)}`),
+        loadAllPublications(facultyId),
+        getJson('/analytics/collaborations'),
+        getJson(`/analytics/productivity-forecast/${encodeURIComponent(facultyId)}`),
+        getJson('/analytics/emerging-research')
+      ]);
+      const faculty = facultyResult.data;
+      const title = `${document.getElementById('reportType').value} — ${faculty.name}`;
+      const body = document.createDocumentFragment();
+      const csv = [['Report', title], ['Period', periodDescription()], ['Faculty ID', faculty._id], []];
+
+      const profile = createSection('Faculty profile', 'Faculty record and its stored source aggregates.');
+      const profileTable = createTable(['Field', 'Value'], [
+        ['Faculty', faculty.name],
+        ['Department', faculty.department],
+        ['Designation', faculty.designation],
+        ['Institution', faculty.institution]
+      ]);
+      if (profileTable) profile.appendChild(profileTable);
+      body.appendChild(profile);
+      csv.push(['Faculty profile'], ['Field', 'Value'],
+        ['Faculty', faculty.name], ['Department', faculty.department], ['Designation', faculty.designation], ['Institution', faculty.institution], []);
+
+      const profileTotals = createSection('Profile source aggregates', 'Stored faculty-level totals are all-time/source aggregates and are not limited by the selected publication period.');
+      const aggregateRows = [
+        ['Profile publication count', faculty.publicationCount],
+        ['Profile citation count', faculty.citationCount],
+        ['h-index', faculty.hIndex],
+        ['i10-index', faculty.i10Index]
+      ];
+      const aggregateTable = createTable(['Metric', 'Value'], aggregateRows);
+      if (aggregateTable) profileTotals.appendChild(aggregateTable);
+      body.appendChild(profileTotals);
+      csv.push(['Profile source aggregates (all-time)'], ['Metric', 'Value'], ...aggregateRows, []);
+
+      const linkedCitations = publications.reduce((sum, publication) => sum + (Number(publication.citations) || 0), 0);
+      const linked = createSection('Linked publication records', `Non-duplicate database records in ${periodDescription()}. These record-level counts may differ from the all-time profile source aggregates above.`);
+      const linkedStats = [
+        ['Linked non-duplicate publications', publications.length],
+        ['Citations in linked records', linkedCitations]
+      ];
+      const linkedStatsTable = createTable(['Metric', 'Value'], linkedStats);
+      if (linkedStatsTable) linked.appendChild(linkedStatsTable);
+      if (publications.length) {
+        const publicationRows = publications.map(publication => [
+          publication.title,
+          publication.year,
+          publication.venue || publication.journal || publication.conference,
+          publication.citations,
+          publication.source
+        ]);
+        linked.appendChild(createTable(['Publication', 'Year', 'Venue', 'Citations', 'Source'], publicationRows));
+        csv.push(['Linked publication records (non-duplicate, selected period)'], ['Metric', 'Value'], ...linkedStats, [],
+          ['Publication', 'Year', 'Venue', 'Citations', 'Source'], ...publicationRows, []);
+      } else {
+        addMessage(linked, 'No linked non-duplicate publication records are available for this faculty and period.');
+        csv.push(['Linked publication records'], ['Note', 'No linked non-duplicate records for this faculty and period.'], []);
+      }
+      body.appendChild(linked);
+
+      const manualDomains = new Set();
+      const predictedDomains = new Set();
+      for (const publication of publications) {
+        for (const domain of publication.researchDomains || []) {
+          const name = typeof domain === 'string' ? domain : domain?.name;
+          if (name) manualDomains.add(name);
+        }
+        for (const domain of publication.predictedResearchDomains || []) {
+          if (domain?.name) predictedDomains.add(domain.name);
+        }
+      }
+      const domainsSection = createSection('Research domains', 'Manual and predicted domains are kept separate, based on linked records in the selected period.');
+      for (const [label, values] of [['Manual domains', [...manualDomains].sort()], ['Predicted domains', [...predictedDomains].sort()]]) {
+        const domainBlock = document.createElement('div');
+        domainBlock.className = 'report-domain-block';
+        addText(domainBlock, 'h4', label);
+        if (values.length) addText(domainBlock, 'p', values.join(', '));
+        else addMessage(domainBlock, 'No domain data available.');
+        domainsSection.appendChild(domainBlock);
+        csv.push([label], ['Domain'], ...(values.length ? values.map(value => [value]) : [['No domain data available']]), []);
+      }
+      body.appendChild(domainsSection);
+
+      const yearHistory = forecastResult.data.historicalData || [];
+      const historyInPeriod = yearHistory.filter(item => periodFilter(item.year));
+      const yearly = createSection('Year-wise publication history', 'Yearly counts from the forecast service; duplicate publications are excluded.');
+      if (historyInPeriod.length) {
+        const yearRows = historyInPeriod.map(item => [item.year, item.publicationCount]);
+        yearly.appendChild(createTable(['Year', 'Publications'], yearRows));
+        csv.push(['Year-wise publication history'], ['Year', 'Publications'], ...yearRows, []);
+      } else {
+        addMessage(yearly, 'No valid yearly publication history is available for the selected period.');
+        csv.push(['Year-wise publication history'], ['Note', 'No valid yearly publication history available.'], []);
+      }
+      body.appendChild(yearly);
+
+      const forecast = createSection('Productivity forecast', 'Baseline linear forecast uses all available historical years, independent of the report period.');
+      if (forecastResult.data.forecastAvailable) {
+        const forecastRows = [
+          ['Forecast year', forecastResult.data.forecastYear],
+          ['Forecast publications', forecastResult.data.forecastPublicationCount],
+          ['Trend direction', forecastResult.data.trendDirection],
+          ['Annual average', forecastResult.data.averageAnnualPublications],
+          ['Annual change', forecastResult.data.annualChange],
+          ['R² fit', forecastResult.data.rSquared],
+          ['Summary', forecastResult.data.forecastSummary]
+        ];
+        forecast.appendChild(createTable(['Metric', 'Value'], forecastRows));
+        csv.push(['Productivity forecast (all available history)'], ['Metric', 'Value'], ...forecastRows, []);
+      } else {
+        addMessage(forecast, forecastResult.data.forecastSummary || 'Insufficient historical publication data for forecasting.');
+        csv.push(['Productivity forecast'], ['Note', forecastResult.data.forecastSummary || 'Insufficient history.'], []);
+      }
+      body.appendChild(forecast);
+
+      const collaborations = (collaborationResult.data || []).filter(item =>
+        item.faculty1 === String(faculty._id) || item.faculty2 === String(faculty._id)
+      );
+      const collaborationSection = createSection('Recorded collaborations', 'Relationships are derived from shared non-duplicate publications.');
+      if (collaborations.length) {
+        const collaborationRows = collaborations.map(item => {
+          const colleague = item.faculty1 === String(faculty._id) ? item.faculty2Name : item.faculty1Name;
+          return [colleague, item.publicationCount, item.collaborationStrength];
+        });
+        collaborationSection.appendChild(createTable(['Faculty', 'Shared publications', 'Collaboration strength'], collaborationRows));
+        csv.push(['Recorded collaborations'], ['Faculty', 'Shared publications', 'Collaboration strength'], ...collaborationRows, []);
+      } else {
+        addMessage(collaborationSection, 'No recorded collaborations are available for this faculty.');
+        csv.push(['Recorded collaborations'], ['Note', 'No recorded collaborations.'], []);
+      }
+      body.appendChild(collaborationSection);
+
+      const emerging = (emergingResult.data || []).filter(item => item.isEmerging);
+      const emergingSection = createSection('Institutional emerging research', 'Institution-wide context from recent predicted-domain publication trends.');
+      if (emerging.length) {
+        const emergingRows = emerging.map(item => [item.rank, item.domain, item.latestYear, item.latestCount, `${item.growthRate}%`, item.trendDirection, item.emergingScore]);
+        emergingSection.appendChild(createTable(['Rank', 'Domain', 'Year', 'Publications', 'Growth', 'Trend', 'Score'], emergingRows));
+        csv.push(['Institutional emerging research'], ['Rank', 'Domain', 'Year', 'Publications', 'Growth', 'Trend', 'Score'], ...emergingRows, []);
+      } else {
+        addMessage(emergingSection, 'No emerging research domains are currently identified.');
+        csv.push(['Institutional emerging research'], ['Note', 'No emerging research domains are currently identified.'], []);
+      }
+      body.appendChild(emergingSection);
+      return { title, body, csv };
+    };
+
+    const institutionReport = async () => {
+      const [overviewResult, yearlyResult, departmentsResult, domainsResult, collaborationResult, emergingResult] = await Promise.all([
+        getJson('/analytics/overview'),
+        getJson('/analytics/yearly'),
+        getJson('/analytics/departments'),
+        getJson('/analytics/research-domains'),
+        getJson('/analytics/collaborations'),
+        getJson('/analytics/emerging-research')
+      ]);
+      const overview = overviewResult.data;
+      const title = `${document.getElementById('reportType').value} — Institution-wide`;
+      const body = document.createDocumentFragment();
+      const csv = [['Report', title], ['Period', periodDescription()], []];
+
+      const summary = createSection('Institution overview', 'Existing dashboard analytics, excluding duplicate publications where supported by the endpoint.');
+      const overviewRows = [
+        ['Faculty', overview.totalFaculty], ['Publications', overview.totalPublications],
+        ['Citations', overview.totalCitations], ['Average citations per publication', overview.averageCitations],
+        ['Research domains', overview.totalResearchDomains], ['Stored collaboration records', overview.totalCollaborations]
+      ];
+      summary.appendChild(createTable(['Metric', 'Value'], overviewRows));
+      body.appendChild(summary);
+      csv.push(['Institution overview'], ['Metric', 'Value'], ...overviewRows, []);
+
+      const selectedYears = (yearlyResult.data || []).filter(item => periodFilter(item.year));
+      const yearSection = createSection('Year-wise analytics', `Institution-wide publication and citation totals for ${periodDescription()}.`);
+      if (selectedYears.length) {
+        const rows = selectedYears.map(item => [item.year, item.publications, item.citations]);
+        yearSection.appendChild(createTable(['Year', 'Publications', 'Citations'], rows));
+        csv.push(['Year-wise analytics'], ['Year', 'Publications', 'Citations'], ...rows, []);
+      } else {
+        addMessage(yearSection, 'No year-wise analytics are available for this period.');
+        csv.push(['Year-wise analytics'], ['Note', 'No data for selected period.'], []);
+      }
+      body.appendChild(yearSection);
+
+      const departmentSection = createSection('Department analytics', 'All-time publication and citation totals by department; the existing endpoint does not provide a year filter.');
+      const departmentRows = (departmentsResult.data || []).map(item => [item.department, item.facultyCount, item.publicationCount, item.citationCount]);
+      if (departmentRows.length) {
+        departmentSection.appendChild(createTable(['Department', 'Faculty', 'Publications', 'Citations'], departmentRows));
+        csv.push(['Department analytics'], ['Department', 'Faculty', 'Publications', 'Citations'], ...departmentRows, []);
+      } else {
+        addMessage(departmentSection, 'No department analytics are available.');
+        csv.push(['Department analytics'], ['Note', 'No department analytics are available.'], []);
+      }
+      body.appendChild(departmentSection);
+
+      const domainSection = createSection('Research-domain analytics', 'All-time manual and predicted domain analytics are shown separately; the existing endpoint does not provide a year filter.');
+      const manualRows = (domainsResult.data || []).map(item => [item.domain, item.publicationCount, item.citationCount, item.facultyCount]);
+      const predictedRows = (domainsResult.predicted || []).map(item => [item.domain, item.publicationCount, item.citationCount, item.facultyCount]);
+      for (const [label, rows] of [['Manual domains', manualRows], ['Predicted domains', predictedRows]]) {
+        const subsection = document.createElement('div');
+        subsection.className = 'report-domain-block';
+        addText(subsection, 'h4', label);
+        if (rows.length) {
+          const table = createTable(['Domain', 'Publications', 'Citations', 'Faculty'], rows);
+          subsection.appendChild(table);
+          csv.push([label], ['Domain', 'Publications', 'Citations', 'Faculty'], ...rows, []);
+        } else {
+          addMessage(subsection, `No ${label.toLowerCase()} data available.`);
+          csv.push([label], ['Note', `No ${label.toLowerCase()} data available.`], []);
+        }
+        domainSection.appendChild(subsection);
+      }
+      body.appendChild(domainSection);
+
+      const collaborationSection = createSection('Publication-derived collaboration network', 'All-time faculty pairs calculated from shared non-duplicate publications; this differs from stored collaboration records shown in the overview.');
+      const collaborationRows = (collaborationResult.data || []).map(item => [item.faculty1Name, item.faculty2Name, item.publicationCount, item.collaborationStrength]);
+      if (collaborationRows.length) {
+        collaborationSection.appendChild(createTable(['Faculty 1', 'Faculty 2', 'Shared publications', 'Strength'], collaborationRows));
+        csv.push(['Collaboration network'], ['Faculty 1', 'Faculty 2', 'Shared publications', 'Strength'], ...collaborationRows, []);
+      } else {
+        addMessage(collaborationSection, 'No collaboration relationships are available.');
+        csv.push(['Collaboration network'], ['Note', 'No collaboration relationships are available.'], []);
+      }
+      body.appendChild(collaborationSection);
+
+      const emergingSection = createSection('Emerging research', 'Domains currently marked emerging by the existing trend analysis.');
+      const emergingRows = (emergingResult.data || []).filter(item => item.isEmerging).map(item => [item.rank, item.domain, item.latestYear, item.latestCount, `${item.growthRate}%`, item.trendDirection, item.emergingScore]);
+      if (emergingRows.length) {
+        emergingSection.appendChild(createTable(['Rank', 'Domain', 'Year', 'Publications', 'Growth', 'Trend', 'Score'], emergingRows));
+        csv.push(['Emerging research'], ['Rank', 'Domain', 'Year', 'Publications', 'Growth', 'Trend', 'Score'], ...emergingRows, []);
+      } else {
+        addMessage(emergingSection, 'No emerging research domains are currently identified.');
+        csv.push(['Emerging research'], ['Note', 'No emerging research domains are currently identified.'], []);
+      }
+      body.appendChild(emergingSection);
+      return { title, body, csv };
+    };
+
+    const generateReport = async () => {
+      const button = document.getElementById('genBtn');
+      const originalLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Loading live data…';
+      currentCsvRows = [];
+      for (const exportButton of [...printButtons, ...csvButtons]) exportButton.disabled = true;
+      previewCard.style.display = 'none';
+      setStatus('Retrieving current records from the analytics service…');
+      try {
+        const scope = scopeSelect.value;
+        const report = scope === 'all' ? await institutionReport() : await facultyReport(scope);
+        document.getElementById('previewTitle').textContent = report.title;
+        document.getElementById('reportGenerated').textContent = `Generated ${new Date().toLocaleString()} · Period: ${periodDescription()}`;
+        document.getElementById('reportDataNote').textContent = scope === 'all'
+          ? 'Institution-wide values are supplied by existing analytics endpoints.'
+          : 'Faculty profile aggregates are all-time. Linked publication totals follow the selected period and exclude records marked duplicate.';
+        previewBody.replaceChildren(report.body);
+        currentCsvRows = report.csv;
+        previewCard.style.display = 'block';
+        for (const exportButton of [...printButtons, ...csvButtons]) exportButton.disabled = false;
+        setStatus('Report generated from live analytics data.');
+      } catch (error) {
+        previewCard.style.display = 'none';
+        setStatus(error.message, true);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalLabel;
+      }
+    };
+
+    const downloadCsv = () => {
+      if (!currentCsvRows.length) return;
+      const csvEscape = value => {
+        let text = value === null || value === undefined ? '' : String(value);
+        if (/^[=+@\-]/.test(text)) text = `'${text}`;
+        return `"${text.replace(/"/g, '""')}"`;
+      };
+      const csv = currentCsvRows.map(row => row.map(csvEscape).join(',')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `research-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    };
+
+    const loadFaculty = async () => {
+      try {
+        const result = await getJson('/faculty');
+        facultyRecords = result.data || [];
+        for (const faculty of facultyRecords) {
+          const option = document.createElement('option');
+          option.value = faculty._id;
+          option.textContent = `${faculty.name} · ${faculty.department}`;
+          scopeSelect.appendChild(option);
+        }
+        setStatus(`${facultyRecords.length} faculty records available. Select a scope and generate a report.`);
+      } catch (error) {
+        scopeSelect.disabled = true;
+        document.getElementById('genBtn').disabled = true;
+        setStatus(error.message, true);
+      }
+    };
+
+    document.getElementById('genBtn').addEventListener('click', generateReport);
+    for (const button of printButtons) button.addEventListener('click', () => window.print());
+    for (const button of csvButtons) button.addEventListener('click', downloadCsv);
+    loadFaculty();
+  })();
 </script>
 </body>
 </html>

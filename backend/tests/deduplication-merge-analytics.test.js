@@ -21,7 +21,8 @@ const ResearchDomain = require('../models/ResearchDomain');
 const duplicateReviewService = require('../services/duplicateReview.service');
 const duplicateDetectionService = require('../services/duplicateDetection.service');
 
-const TEST_DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/research_platform_test';
+const { getTestDatabaseUri } = require('./testDatabase');
+const TEST_DB_URI = getTestDatabaseUri();
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 describe('Phase 11E — Merge Workflow, Review Lifecycle & Post-Merge Analytics', () => {

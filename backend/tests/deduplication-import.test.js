@@ -15,7 +15,8 @@ const orcidService = require('../services/orcid.service');
 const scopusService = require('../services/scopus.service');
 const googleScholarService = require('../services/googleScholar.service');
 
-const TEST_DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/research_platform_test';
+const { getTestDatabaseUri } = require('./testDatabase');
+const TEST_DB_URI = getTestDatabaseUri();
 
 describe('Phase 11D — Publication Import Deduplication Integration', () => {
   let testFaculty = null;

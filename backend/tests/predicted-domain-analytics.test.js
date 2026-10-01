@@ -14,7 +14,8 @@ const Publication = require('../models/Publication');
 const ResearchDomain = require('../models/ResearchDomain');
 const Faculty = require('../models/Faculty');
 
-const TEST_DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/research_platform_test';
+const { getTestDatabaseUri } = require('./testDatabase');
+const TEST_DB_URI = getTestDatabaseUri();
 
 describe('Phase 12D — Research Domain Analytics Integration', () => {
   let app;

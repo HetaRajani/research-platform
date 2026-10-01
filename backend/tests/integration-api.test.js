@@ -16,7 +16,8 @@ const Publication = require('../models/Publication');
 const DuplicateReview = require('../models/DuplicateReview');
 const Faculty = require('../models/Faculty');
 
-const TEST_DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/research_platform_test';
+const { getTestDatabaseUri } = require('./testDatabase');
+const TEST_DB_URI = getTestDatabaseUri();
 
 describe('Phase 11D — Integration HTTP API & Deduplication Endpoints', () => {
   let app;
