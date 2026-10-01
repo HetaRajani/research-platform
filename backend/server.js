@@ -48,6 +48,8 @@ app.get('/', (req, res) => {
         departments: '/api/analytics/departments',
         researchDomains: '/api/analytics/research-domains',
         predictedResearchDomains: '/api/analytics/research-domains/predicted',
+        emergingResearch: '/api/analytics/emerging-research',
+        collaboratorRecommendations: '/api/analytics/collaborator-recommendations/:facultyId',
         collaborations: '/api/analytics/collaborations'
       },
       import: {

@@ -1,4 +1,7 @@
+const mongoose = require('mongoose');
 const { Faculty, Publication, ResearchDomain, Collaboration } = require('../models');
+const emergingResearchService = require('../services/emergingResearch.service');
+const collaboratorRecommendationService = require('../services/collaboratorRecommendation.service');
 
 /**
  * @desc    Get dashboard overview analytics from MongoDB
@@ -557,6 +560,28 @@ const getPredictedResearchDomainAnalytics = async (req, res, next) => {
 };
 
 /**
+ * @desc    Get explainable rule-based emerging research analytics
+ * @route   GET /api/analytics/emerging-research
+ * @access  Public
+ */
+const getEmergingResearchAnalytics = async (req, res, next) => {
+  try {
+    const data = await emergingResearchService.getEmergingResearch({
+      minimumPublications: req.query.minimumPublications,
+      minimumGrowthRate: req.query.minimumGrowthRate,
+      recentYears: req.query.recentYears
+    });
+
+    res.status(200).json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Get collaboration network analytics between faculty members based on shared publications
  * @route   GET /api/analytics/collaborations
  * @access  Public
@@ -682,12 +707,36 @@ const getCollaborationsAnalytics = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Recommend faculty with overlapping research domains
+ * @route   GET /api/analytics/collaborator-recommendations/:facultyId
+ * @access  Public, matching the existing analytics routes
+ */
+const getCollaboratorRecommendations = async (req, res, next) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.facultyId)) {
+    return res.status(400).json({ success: false, message: 'Invalid faculty ID' });
+  }
+
+  try {
+    const recommendations = await collaboratorRecommendationService.getCollaboratorRecommendations(req.params.facultyId);
+    if (recommendations === null) {
+      return res.status(404).json({ success: false, message: 'Faculty not found' });
+    }
+
+    return res.status(200).json({ success: true, data: recommendations });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getOverviewAnalytics,
   getYearlyAnalytics,
   getDepartmentAnalytics,
   getResearchDomainAnalytics,
   getPredictedResearchDomainAnalytics,
+  getEmergingResearchAnalytics,
+  getCollaboratorRecommendations,
   getCollaborationsAnalytics
 };
 
