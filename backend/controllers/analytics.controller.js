@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const { Faculty, Publication, ResearchDomain, Collaboration } = require('../models');
 const emergingResearchService = require('../services/emergingResearch.service');
 const collaboratorRecommendationService = require('../services/collaboratorRecommendation.service');
+const productivityForecastService = require('../services/productivityForecast.service');
+const researchAssistantService = require('../services/researchAssistant.service');
 
 /**
  * @desc    Get dashboard overview analytics from MongoDB
@@ -729,6 +731,80 @@ const getCollaboratorRecommendations = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Get a rule-based linear baseline productivity forecast for faculty
+ * @route   GET /api/analytics/productivity-forecast/:facultyId
+ * @access  Public, matching the existing analytics routes
+ */
+const getProductivityForecast = async (req, res, next) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.facultyId)) {
+    return res.status(400).json({ success: false, message: 'Invalid faculty ID' });
+  }
+
+  try {
+    const forecast = await productivityForecastService.getFacultyProductivityForecast(req.params.facultyId);
+    if (forecast === null) {
+      return res.status(404).json({ success: false, message: 'Faculty not found' });
+    }
+
+    return res.status(200).json({ success: true, data: forecast });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const invokeAnalyticsHandler = (handler, query = {}) => new Promise((resolve, reject) => {
+  const response = {
+    statusCode: 200,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      if (this.statusCode >= 400) {
+        reject(new Error(body.message || 'Analytics data could not be retrieved'));
+      } else {
+        resolve(body.data);
+      }
+      return this;
+    }
+  };
+
+  Promise.resolve(handler({ query, params: {} }, response, reject)).catch(reject);
+});
+
+/**
+ * @desc    Answer supported research questions from existing analytics data
+ * @route   POST /api/analytics/research-assistant
+ * @access  Public, matching the existing analytics routes
+ */
+const postResearchAssistantQuestion = async (req, res, next) => {
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  if (typeof body.question !== 'string' || !body.question.trim()) {
+    return res.status(400).json({ success: false, message: 'A non-empty question string is required' });
+  }
+  if (Object.hasOwn(body, 'facultyId') && !mongoose.isObjectIdOrHexString(body.facultyId)) {
+    return res.status(400).json({ success: false, message: 'Invalid faculty ID' });
+  }
+
+  try {
+    const answer = await researchAssistantService.answerResearchQuestion({
+      question: body.question.trim(),
+      facultyId: body.facultyId
+    }, {
+      getOverviewAnalytics: () => invokeAnalyticsHandler(getOverviewAnalytics),
+      getResearchDomainAnalytics: () => invokeAnalyticsHandler(getResearchDomainAnalytics, { split: 'true' })
+    });
+
+    if (answer.errorStatus) {
+      return res.status(answer.errorStatus).json({ success: false, message: answer.errorMessage });
+    }
+    return res.status(200).json({ success: true, data: answer });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getOverviewAnalytics,
   getYearlyAnalytics,
@@ -737,6 +813,8 @@ module.exports = {
   getPredictedResearchDomainAnalytics,
   getEmergingResearchAnalytics,
   getCollaboratorRecommendations,
+  getProductivityForecast,
+  postResearchAssistantQuestion,
   getCollaborationsAnalytics
 };
 

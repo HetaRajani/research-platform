@@ -230,6 +230,7 @@ ul{ margin:0; padding:0; list-style:none; }
 .card-head .hint{ font-size:12px; color:var(--ink-400); }
 
 .grid{ display:grid; gap:18px; }
+.grid > *{ min-width:0; }
 .grid-4{ grid-template-columns:repeat(4,1fr); }
 .grid-3{ grid-template-columns:repeat(3,1fr); }
 .grid-2{ grid-template-columns:2fr 1fr; }
@@ -400,4 +401,25 @@ tbody tr:hover{ background:var(--blue-050); }
   .sidebar{ display:none; }
   .content{ padding:20px; }
   .grid-3{ grid-template-columns:1fr; }
+}
+
+@media (max-width:600px){
+  .topbar{
+    height:auto;
+    min-height:66px;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:12px 16px;
+  }
+  .topbar > :first-child{ min-width:0; }
+  .topbar-right{ width:100%; min-width:0; gap:8px; }
+  .search-box{ width:auto; min-width:0; flex:1; }
+  .search-box input{ min-width:0; }
+  .login-wrap{ flex-direction:column; }
+  .login-side,
+  .login-form-col{ flex:0 0 auto; }
+  .login-side{ padding:28px 24px; gap:18px; }
+  .login-side h1{ max-width:none; font-size:28px; margin-top:0; }
+  .login-side p{ max-width:none; }
+  .login-form-col{ padding:28px 20px; }
 }
