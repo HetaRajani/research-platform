@@ -4,10 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Research Insights · Research Analytics Platform</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=role-ui">
 <script src="js/config.js"></script>
+<script src="js/auth.js?v=role-ui"></script>
+<script>AUTH.protectPage();</script>
 </head>
-<body>
+<body class="insights-view">
 <div class="app-shell">
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -20,13 +22,13 @@
     <nav class="nav-group">
       <div class="nav-label">Workspace</div>
       <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
-      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> <span data-role-label data-admin-label="Faculty Directory" data-faculty-label="My Profile">Faculty Directory</span></a>
       <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
       <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
     </nav>
     <nav class="nav-group">
       <div class="nav-label">Research insights</div>
-      <a class="nav-link" href="#emerging"><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="#emerging" data-admin-only><span class="ico">↗</span> Emerging research</a>
       <a class="nav-link" href="#collaborators"><span class="ico">✦</span> Collaborator suggestions</a>
       <a class="nav-link" href="#forecast"><span class="ico">▤</span> Productivity forecast</a>
       <a class="nav-link" href="#assistant"><span class="ico">✳</span> Research assistant</a>
@@ -40,13 +42,14 @@
   <div class="main">
     <header class="topbar">
       <div>
-        <div class="topbar-title">Research Insights</div>
-        <div class="topbar-sub">Emerging domains · faculty connections · publication trends</div>
+        <div class="topbar-title" id="insightsTopbarTitle">Emerging research</div>
+        <div class="topbar-sub" id="insightsTopbarSub">Recent growth across predicted research domains</div>
       </div>
       <div class="topbar-right">
-        <div class="avatar-chip">
-          <div class="dot">RA</div>
-          <div class="who">Research analytics<div class="role">Live services</div></div>
+          <div class="avatar-chip">
+            <div class="dot" id="userDot">RA</div>
+            <div class="who"><span id="userName">Research analytics</span><div class="role" id="userRole">—</div></div>
+            <button id="logoutBtn" type="button" class="btn btn-ghost">Sign out</button>
         </div>
       </div>
     </header>
@@ -54,8 +57,8 @@
     <main class="content">
       <div class="page-head">
         <span class="eyebrow">Advanced analytics</span>
-        <h1 style="font-size:22px;">Research insights</h1>
-        <div class="desc">Rule-based and data-driven views from indexed publications, faculty research domains, and existing analytics.</div>
+        <h1 id="insightsPageTitle" style="font-size:22px;">Emerging research</h1>
+        <div class="desc" id="insightsPageDescription">Recent growth across predicted research domains.</div>
       </div>
 
       <div class="filters-row insights-context">
@@ -66,7 +69,7 @@
         <span class="insight-status" id="contextStatus" role="status">Loading faculty records…</span>
       </div>
 
-      <section class="card insights-section" id="emerging" aria-labelledby="emergingHeading">
+      <section class="card insights-section" id="emerging" data-admin-only aria-labelledby="emergingHeading">
         <div class="card-head insights-heading">
           <div>
             <h2 id="emergingHeading">Emerging research</h2>
@@ -132,10 +135,11 @@
           </div>
         </div>
         <form id="assistantForm" class="assistant-form">
-          <div class="field assistant-faculty-field">
+          <div class="field assistant-faculty-field" data-admin-only>
             <label for="assistantFaculty">Faculty context (optional)</label>
             <select id="assistantFaculty"><option value="">Institution-wide</option></select>
           </div>
+          <div class="field" data-faculty-only>This question is scoped to your faculty profile.</div>
           <div class="field assistant-question-field">
             <label for="assistantQuestion">Research question</label>
             <textarea id="assistantQuestion" rows="3" required maxlength="1000" placeholder="For example: What are the emerging research areas?"></textarea>
@@ -179,11 +183,63 @@
   const forecastStatus = document.getElementById('forecastStatus');
   const forecastContent = document.getElementById('forecastContent');
   let faculty = [];
+  AUTH.initUserDisplay();
+
+  const insightViews = {
+    emerging: {
+      title: 'Emerging research',
+      description: 'Recent growth across predicted research domains.'
+    },
+    collaborators: {
+      title: 'Collaborator suggestions',
+      description: 'Faculty connected by shared research domains.'
+    },
+    forecast: {
+      title: 'Productivity forecast',
+      description: 'A linear baseline forecast from yearly publication history.'
+    },
+    assistant: {
+      title: 'Research assistant',
+      description: 'Ask a question about existing research analytics.'
+    }
+  };
+
+  const syncInsightView = () => {
+    const viewName = window.location.hash.slice(1);
+    const facultyRole = AUTH.getRole() === 'faculty';
+    const selectedView = facultyRole && (!insightViews[viewName] || viewName === 'emerging')
+      ? 'collaborators'
+      : (insightViews[viewName] ? viewName : 'emerging');
+    if (facultyRole && viewName !== selectedView) {
+      globalThis.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${selectedView}`);
+    }
+    const view = insightViews[selectedView];
+    document.body.classList.toggle('needs-faculty-context', selectedView === 'collaborators' || selectedView === 'forecast');
+    document.querySelectorAll('.insights-section').forEach(section => {
+      const isSelected = section.id === selectedView;
+      section.classList.toggle('is-current', isSelected);
+      section.setAttribute('aria-hidden', String(!isSelected));
+    });
+    document.querySelectorAll('.nav-group .nav-link[href^="#"]').forEach(link => {
+      const isSelected = link.hash.slice(1) === selectedView;
+      link.classList.toggle('active', isSelected);
+      if (isSelected) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+    document.getElementById('insightsTopbarTitle').textContent = view.title;
+    document.getElementById('insightsTopbarSub').textContent = view.description;
+    document.getElementById('insightsPageTitle').textContent = view.title;
+    document.getElementById('insightsPageDescription').textContent = view.description;
+  };
 
   const requestJson = async (url, options = {}) => {
     let response;
     try {
-      response = await fetch(url, options);
+      const headers = {
+        ...(options.headers || {}),
+        ...(AUTH.getToken() ? { Authorization: `Bearer ${AUTH.getToken()}` } : {})
+      };
+      response = await fetch(url, { ...options, headers });
     } catch {
       throw new Error('Could not connect to the research analytics service.');
     }
@@ -338,6 +394,23 @@
 
   const loadFaculty = async () => {
     try {
+      if (AUTH.getRole() === 'faculty') {
+        const facultyId = AUTH.getFacultyId();
+        if (!facultyId) throw new Error('Your account is not linked to a faculty profile.');
+        const userFaculty = AUTH.getUser()?.facultyId;
+        let ownFaculty = userFaculty && typeof userFaculty === 'object' ? userFaculty : null;
+        if (!ownFaculty || !ownFaculty.name) ownFaculty = await requestJson(`${apiBase}/faculty/${encodeURIComponent(facultyId)}`);
+        faculty = [ownFaculty];
+        facultyContext.replaceChildren(new Option(`${ownFaculty.name} · ${ownFaculty.department || ''}`, facultyId));
+        assistantFaculty.replaceChildren(new Option(`${ownFaculty.name} · ${ownFaculty.department || ''}`, facultyId));
+        facultyContext.value = facultyId;
+        assistantFaculty.value = facultyId;
+        facultyContext.disabled = true;
+        assistantFaculty.disabled = true;
+        showStatus(contextStatus, 'Using your linked faculty profile.');
+        await Promise.all([loadRecommendations(), loadForecast()]);
+        return;
+      }
       faculty = await requestJson(`${apiBase}/faculty`);
       facultyContext.replaceChildren(new Option('Select a faculty member', ''));
       assistantFaculty.replaceChildren(new Option('Institution-wide', ''));
@@ -362,7 +435,7 @@
   document.getElementById('assistantForm').addEventListener('submit', async event => {
     event.preventDefault();
     const question = document.getElementById('assistantQuestion').value.trim();
-    const facultyId = assistantFaculty.value;
+    const facultyId = AUTH.getRole() === 'faculty' ? AUTH.getFacultyId() : assistantFaculty.value;
     const submit = document.getElementById('askAssistant');
     const result = document.getElementById('assistantResult');
     result.hidden = true;
@@ -409,8 +482,10 @@
   document.getElementById('refreshCollaborators').addEventListener('click', loadRecommendations);
   document.getElementById('refreshForecast').addEventListener('click', loadForecast);
 
+  window.addEventListener('hashchange', syncInsightView);
+  syncInsightView();
   loadFaculty();
-  loadEmergingResearch();
+  if (AUTH.getRole() === 'admin') loadEmergingResearch();
 })();
 </script>
 </body>

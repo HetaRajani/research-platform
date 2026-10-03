@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faculty Directory · Research Analytics Platform</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=role-ui">
+<script src="js/config.js"></script>
+<script src="js/auth.js?v=role-ui"></script>
+<script>AUTH.protectPage();</script>
 </head>
 <body>
 
@@ -20,13 +23,13 @@
     <nav class="nav-group">
       <div class="nav-label">Workspace</div>
       <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
-      <a class="nav-link active" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link active" href="faculty.html"><span class="ico">◍</span> <span data-role-label data-admin-label="Faculty Directory" data-faculty-label="My Profile">Faculty Directory</span></a>
       <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
       <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
     </nav>
     <nav class="nav-group">
       <div class="nav-label">Research insights</div>
-      <a class="nav-link" href="insights.html#emerging"><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="insights.html#emerging" data-admin-only><span class="ico">↗</span> Emerging research</a>
       <a class="nav-link" href="insights.html#collaborators"><span class="ico">✦</span> Collaborator suggestions</a>
       <a class="nav-link" href="insights.html#forecast"><span class="ico">▤</span> Productivity forecast</a>
       <a class="nav-link" href="insights.html#assistant"><span class="ico">✳</span> Research assistant</a>
@@ -40,14 +43,15 @@
   <div class="main">
     <header class="topbar">
       <div>
-        <div class="topbar-title">Faculty Directory</div>
-        <div class="topbar-sub">5 profiles · aggregated from 3 sources</div>
+        <div class="topbar-title" data-role-label data-admin-label="Faculty Directory" data-faculty-label="My Profile">Faculty Directory</div>
+        <div class="topbar-sub" id="topbarSub">5 profiles · aggregated from 3 sources</div>
       </div>
       <div class="topbar-right">
         <div class="search-box">🔍 <input type="text" id="searchInput" placeholder="Search by name or area..."></div>
         <div class="avatar-chip">
-          <div class="dot">AM</div>
-          <div class="who">Dr. Anjali Mehta<div class="role">Faculty</div></div>
+          <div class="dot" id="userDot">RA</div>
+          <div class="who"><span id="userName">Research analytics</span><div class="role" id="userRole">—</div></div>
+          <button id="logoutBtn" type="button" class="btn btn-ghost">Sign out</button>
         </div>
       </div>
     </header>
@@ -55,11 +59,12 @@
     <main class="content">
       <div class="page-head">
         <span class="eyebrow">Directory</span>
-        <h1 style="font-size:22px;">Browse faculty research profiles</h1>
-        <div class="desc">Each card consolidates metrics pulled from Google Scholar, Scopus and ORCID into one profile. Click a card to open the full profile.</div>
+        <h1 style="font-size:22px;" data-role-label data-admin-label="Browse faculty research profiles" data-faculty-label="My faculty profile">Browse faculty research profiles</h1>
+        <div class="desc" id="facultyPageDescription">Each card consolidates metrics pulled from Google Scholar, Scopus and ORCID into one profile. Click a card to open the full profile.</div>
       </div>
 
-      <div class="filters-row">
+      <div class="filters-row" data-admin-only>
+        <button class="btn btn-primary" id="addFacultyBtn" type="button">Add faculty</button>
         <select id="deptFilter">
           <option value="">All departments</option>
         </select>
@@ -72,7 +77,18 @@
         <span style="margin-left:auto;font-size:12.5px;color:var(--ink-400);" id="resultCount"></span>
       </div>
 
-      <div class="grid grid-3" id="facultyGrid" style="margin-bottom:20px;"></div>
+      <div class="grid grid-3" id="facultyGrid" data-admin-only style="margin-bottom:20px;"></div>
+
+      <section class="card card-pad" id="myFacultyProfile" data-faculty-only hidden aria-labelledby="myProfileHeading">
+        <div class="card-head">
+          <div>
+            <h2 id="myProfileHeading">My profile</h2>
+            <div class="hint" id="myProfileSummary">Loading your linked faculty profile…</div>
+          </div>
+          <button class="btn btn-primary" id="editMyProfileBtn" type="button">Edit profile</button>
+        </div>
+        <div id="myProfileDomains"></div>
+      </section>
 
       <div class="footnote">
         Prototype build · faculty records shown are sample data used to validate the directory layout and profile structure.
@@ -81,7 +97,21 @@
   </div>
 </div>
 
-<script src="js/config.js"></script>
+<dialog id="facultyDialog">
+  <form id="facultyForm" method="dialog" class="card card-pad" style="min-width:min(520px,90vw);">
+    <h2 id="facultyDialogTitle">Add faculty</h2>
+    <input type="hidden" id="facultyRecordId">
+    <div class="field"><label for="facultyName">Name</label><input id="facultyName" required></div>
+    <div class="field"><label for="facultyDepartment">Department</label><input id="facultyDepartment" required></div>
+    <div class="field"><label for="facultyDesignation">Designation</label><input id="facultyDesignation"></div>
+    <div class="field"><label for="facultyEmail">Email</label><input id="facultyEmail" type="email"></div>
+    <div class="field"><label for="facultyDomains">Research domains (comma separated)</label><input id="facultyDomains"></div>
+    <div class="field"><label for="facultyOrcid">ORCID iD</label><input id="facultyOrcid"></div>
+    <div class="report-actions"><button class="btn btn-primary" id="saveFacultyBtn" type="button">Save</button><button class="btn btn-ghost" type="button" id="cancelFacultyBtn">Cancel</button></div>
+    <div class="report-status" id="facultyFormStatus" role="status"></div>
+  </form>
+</dialog>
+
 <script>
   const grid = document.getElementById('facultyGrid');
   const deptFilter = document.getElementById('deptFilter');
@@ -89,6 +119,55 @@
   const searchInput = document.getElementById('searchInput');
   const resultCount = document.getElementById('resultCount');
   const topbarSub = document.querySelector('.topbar-sub');
+  AUTH.initUserDisplay();
+  const facultyDialog = document.getElementById('facultyDialog');
+  const facultyFormStatus = document.getElementById('facultyFormStatus');
+  const apiBase = window.APP_CONFIG.API_BASE_URL.replace(/\/$/, '');
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(AUTH.getToken() ? { Authorization: `Bearer ${AUTH.getToken()}` } : {})
+  });
+
+  function openFacultyEditor(profile = null) {
+    document.getElementById('facultyDialogTitle').textContent = profile ? 'Edit faculty profile' : 'Add faculty';
+    document.getElementById('facultyRecordId').value = profile?._id || '';
+    document.getElementById('facultyName').value = profile?.name || '';
+    document.getElementById('facultyDepartment').value = profile?.department || '';
+    document.getElementById('facultyDesignation').value = profile?.designation || '';
+    document.getElementById('facultyEmail').value = profile?.email || '';
+    document.getElementById('facultyDomains').value = (profile?.researchInterests || []).join(', ');
+    document.getElementById('facultyOrcid').value = profile?.orcidId || '';
+    facultyFormStatus.textContent = '';
+    facultyFormStatus.classList.remove('error');
+    facultyDialog.showModal();
+  }
+
+  async function saveFaculty() {
+    const id = document.getElementById('facultyRecordId').value;
+    const payload = {
+      name: document.getElementById('facultyName').value.trim(),
+      department: document.getElementById('facultyDepartment').value.trim(),
+      designation: document.getElementById('facultyDesignation').value.trim(),
+      email: document.getElementById('facultyEmail').value.trim(),
+      researchInterests: document.getElementById('facultyDomains').value.split(',').map(value => value.trim()).filter(Boolean),
+      orcidId: document.getElementById('facultyOrcid').value.trim()
+    };
+    try {
+      const response = await fetch(`${apiBase}/faculty${id ? `/${encodeURIComponent(id)}` : ''}`, {
+        method: id ? 'PUT' : 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Unable to save faculty profile.');
+      facultyDialog.close();
+      await loadFaculty();
+    } catch (error) {
+      facultyFormStatus.textContent = error.message;
+      facultyFormStatus.classList.add('error');
+    }
+  }
 
   let facultyData = [];
   let isLoading = false;
@@ -200,7 +279,26 @@
           <span class="source-chip ${scopusOn ? 'on':'off'}"><span class="led"></span>Scopus</span>
           <span class="source-chip ${orcidOn ? 'on':'off'}"><span class="led"></span>ORCID</span>
         </div>
+        <div class="report-actions" style="margin-top:12px;">
+          <button class="btn btn-ghost" type="button" data-edit-faculty="${f._id}">Edit</button>
+          <button class="btn btn-ghost" type="button" data-delete-faculty="${f._id}">Delete</button>
+        </div>
       `;
+      card.querySelector('[data-edit-faculty]').addEventListener('click', event => {
+        event.stopPropagation();
+        openFacultyEditor(f);
+      });
+      card.querySelector('[data-delete-faculty]').addEventListener('click', async event => {
+        event.stopPropagation();
+        if (!window.confirm(`Delete ${f.name}?`)) return;
+        const response = await fetch(`${apiBase}/faculty/${encodeURIComponent(f._id)}`, { method: 'DELETE', headers: authHeaders() });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+          window.alert(result.message || 'Unable to delete faculty profile.');
+          return;
+        }
+        await loadFaculty();
+      });
       grid.appendChild(card);
     });
   }
@@ -208,6 +306,38 @@
   async function loadFaculty(){
     isLoading = true;
     hasError = false;
+    if (AUTH.getRole() === 'faculty') {
+      const facultyId = AUTH.getFacultyId();
+      const profilePanel = document.getElementById('myFacultyProfile');
+      const summary = document.getElementById('myProfileSummary');
+      if (!facultyId) {
+        summary.textContent = 'Your account is not linked to a faculty profile.';
+        return;
+      }
+      try {
+        const response = await fetch(`${apiBase}/faculty/${encodeURIComponent(facultyId)}`);
+        const result = await response.json();
+        if (!response.ok || !result.success || !result.data) throw new Error(result.message || 'Unable to load your profile.');
+        facultyData = [result.data];
+        const profile = result.data;
+        summary.textContent = `${profile.name} · ${profile.designation || 'Faculty'} · ${profile.department || 'Department not set'} · ${profile.email || ''}`;
+        const domains = document.getElementById('myProfileDomains');
+        domains.replaceChildren();
+        for (const domain of profile.researchInterests || []) {
+          const tag = document.createElement('span');
+          tag.className = 'tag';
+          tag.textContent = domain;
+          domains.appendChild(tag);
+        }
+        topbarSub.textContent = 'View and edit your own faculty profile';
+        document.getElementById('facultyPageDescription').textContent = 'Your profile is visible to you; edit your own contact details and research domains.';
+        profilePanel.hidden = false;
+      } catch (error) {
+        summary.textContent = error.message;
+      }
+      isLoading = false;
+      return;
+    }
     showLoading();
 
     try {
@@ -249,6 +379,10 @@
   deptFilter.addEventListener('change', render);
   sortFilter.addEventListener('change', render);
   searchInput.addEventListener('input', render);
+  document.getElementById('addFacultyBtn').addEventListener('click', () => openFacultyEditor());
+  document.getElementById('editMyProfileBtn').addEventListener('click', () => openFacultyEditor(facultyData[0] || null));
+  document.getElementById('saveFacultyBtn').addEventListener('click', saveFaculty);
+  document.getElementById('cancelFacultyBtn').addEventListener('click', () => facultyDialog.close());
 
   loadFaculty();
 </script>

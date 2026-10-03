@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faculty Profile · Research Analytics Platform</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=role-ui">
+<script src="js/config.js"></script>
+<script src="js/auth.js?v=role-ui"></script>
+<script>AUTH.protectPage({ facultyProfile: true });</script>
 </head>
 <body>
 
@@ -20,7 +23,7 @@
     <nav class="nav-group">
       <div class="nav-label">Workspace</div>
       <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
-      <a class="nav-link active" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link active" href="faculty.html"><span class="ico">◍</span> <span data-role-label data-admin-label="Faculty Directory" data-faculty-label="My Profile">Faculty Directory</span></a>
       <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
       <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
     </nav>
@@ -39,12 +42,13 @@
     <header class="topbar">
       <div>
         <div class="topbar-title">Faculty Profile</div>
-        <div class="topbar-sub"><a href="faculty.html">Directory</a> / <span id="crumbName">—</span></div>
+        <div class="topbar-sub"><a href="faculty.html" data-role-label data-admin-label="Directory" data-faculty-label="My profile">Directory</a> / <span id="crumbName">—</span></div>
       </div>
       <div class="topbar-right">
         <div class="avatar-chip">
-          <div class="dot">AM</div>
-          <div class="who">Dr. Anjali Mehta<div class="role">Faculty</div></div>
+          <div class="dot" id="userDot">RA</div>
+          <div class="who"><span id="userName">Research analytics</span><div class="role" id="userRole">—</div></div>
+          <button id="logoutBtn" type="button" class="btn btn-ghost">Sign out</button>
         </div>
       </div>
     </header>
@@ -55,9 +59,9 @@
   </div>
 </div>
 
-<script src="js/config.js"></script>
 <script src="js/charts.js"></script>
 <script>
+  AUTH.initUserDisplay();
   const params = new URLSearchParams(window.location.search);
   const requestedId = params.get('id');
 

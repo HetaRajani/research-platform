@@ -36,6 +36,39 @@
       }
     },
 
+    getRole() {
+      const role = this.getUser()?.role;
+      return role === 'admin' || role === 'faculty' ? role : null;
+    },
+
+    getFacultyId() {
+      const facultyId = this.getUser()?.facultyId;
+      if (typeof facultyId === 'string') return facultyId;
+      return facultyId?._id || facultyId?.id || facultyId?.facultyCode || null;
+    },
+
+    applyRoleUI() {
+      const role = this.getRole();
+      const body = global.document && global.document.body;
+      if (!body) return;
+
+      if (role) body.dataset.role = role;
+      else delete body.dataset.role;
+
+      body.querySelectorAll('[data-admin-only], [data-faculty-only]').forEach(element => {
+        const visible = element.hasAttribute('data-admin-only')
+          ? role === 'admin'
+          : role === 'faculty';
+        element.hidden = !visible;
+        element.setAttribute('aria-hidden', String(!visible));
+      });
+
+      body.querySelectorAll('[data-role-label]').forEach(element => {
+        const label = role === 'admin' ? element.dataset.adminLabel : element.dataset.facultyLabel;
+        if (label) element.textContent = label;
+      });
+    },
+
     /**
      * Store authentication token and user profile
      * @param {string} token 
@@ -136,10 +169,36 @@
      * Protect page route - redirects unauthenticated users to index.html
      * @returns {boolean} True if authenticated, false if redirecting
      */
-    protectPage() {
-      if (!this.isAuthenticated()) {
+    protectPage(options = {}) {
+      const role = this.getRole();
+      if (!this.isAuthenticated() || !role) {
         global.location.replace('index.html');
         return false;
+      }
+
+      if (options.adminOnly && role !== 'admin') {
+        global.location.replace('dashboard.html');
+        return false;
+      }
+
+      if (options.facultyProfile && role === 'faculty') {
+        const facultyId = this.getFacultyId();
+        const user = this.getUser();
+        const faculty = user && user.facultyId;
+        const allowedIds = [facultyId, faculty && faculty.facultyCode].filter(Boolean).map(String);
+        const requestedId = new URLSearchParams(global.location.search).get('id');
+        if (!facultyId) {
+          global.location.replace('dashboard.html');
+          return false;
+        }
+        if (!requestedId) {
+          global.location.replace(`faculty-profile.html?id=${encodeURIComponent(facultyId)}`);
+          return false;
+        }
+        if (!allowedIds.includes(requestedId)) {
+          global.location.replace(`faculty-profile.html?id=${encodeURIComponent(facultyId)}`);
+          return false;
+        }
       }
       return true;
     },
@@ -183,6 +242,15 @@
   };
 
   global.AUTH = AUTH;
+
+  if (global.document) {
+    const applyRole = () => AUTH.applyRoleUI();
+    if (global.document.readyState === 'loading') {
+      global.document.addEventListener('DOMContentLoaded', applyRole, { once: true });
+    } else {
+      applyRole();
+    }
+  }
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = AUTH;

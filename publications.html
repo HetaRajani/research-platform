@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Publications · Research Analytics Platform</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=role-ui">
+<script src="js/config.js"></script>
+<script src="js/auth.js?v=role-ui"></script>
+<script>AUTH.protectPage({ adminOnly: window.location.hash === '#duplicateReviewPanel' });</script>
 </head>
 <body>
 
@@ -20,13 +23,14 @@
     <nav class="nav-group">
       <div class="nav-label">Workspace</div>
       <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
-      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> <span data-role-label data-admin-label="Faculty Directory" data-faculty-label="My Profile">Faculty Directory</span></a>
       <a class="nav-link active" href="publications.html"><span class="ico">▤</span> Publications</a>
       <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
     </nav>
     <nav class="nav-group">
       <div class="nav-label">Research insights</div>
-      <a class="nav-link" href="insights.html#emerging"><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="insights.html#emerging" data-admin-only><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="publications.html#duplicateReviewPanel" data-admin-only><span class="ico">⧉</span> Duplicate Review</a>
       <a class="nav-link" href="insights.html#collaborators"><span class="ico">✦</span> Collaborator suggestions</a>
       <a class="nav-link" href="insights.html#forecast"><span class="ico">▤</span> Productivity forecast</a>
       <a class="nav-link" href="insights.html#assistant"><span class="ico">✳</span> Research assistant</a>
@@ -46,8 +50,9 @@
       <div class="topbar-right">
         <div class="search-box">🔍 <input type="text" id="searchInput" placeholder="Search title or venue..."></div>
         <div class="avatar-chip">
-          <div class="dot">AM</div>
-          <div class="who">Dr. Anjali Mehta<div class="role">Faculty</div></div>
+          <div class="dot" id="userDot">RA</div>
+          <div class="who"><span id="userName">Research analytics</span><div class="role" id="userRole">—</div></div>
+          <button id="logoutBtn" type="button" class="btn btn-ghost">Sign out</button>
         </div>
       </div>
     </header>
@@ -55,12 +60,13 @@
     <main class="content">
       <div class="page-head">
         <span class="eyebrow">Records</span>
-        <h1 style="font-size:22px;">All indexed publications</h1>
-        <div class="desc">Consolidated list pulled from Google Scholar and Scopus records. Filter by faculty, year, type or source.</div>
+        <h1 style="font-size:22px;" data-role-label data-admin-label="All indexed publications" data-faculty-label="My publications">All indexed publications</h1>
+        <div class="desc" id="publicationsDescription">Consolidated list pulled from Google Scholar and Scopus records. Filter by faculty, year, type or source.</div>
       </div>
 
       <div class="filters-row">
-        <select id="facultyFilter"><option value="">All faculty</option></select>
+        <button class="btn btn-primary" id="addPublicationBtn" type="button">Add publication</button>
+        <select id="facultyFilter" data-admin-only><option value="">All faculty</option></select>
         <select id="yearFilter"><option value="">All years</option></select>
         <select id="domainFilter"><option value="">All research domains</option></select>
         <select id="sourceFilter">
@@ -76,11 +82,20 @@
         <span style="margin-left:auto;font-size:12.5px;color:var(--ink-400);" id="resultCount">Loading...</span>
       </div>
 
+      <section class="card card-pad" id="duplicateReviewPanel" data-admin-only aria-labelledby="duplicateReviewHeading" style="margin-bottom:16px;">
+        <div class="card-head">
+          <div><h2 id="duplicateReviewHeading">Duplicate Review</h2><div class="hint">Review candidate pairs before merging records.</div></div>
+          <button class="btn btn-ghost" id="refreshDuplicateReviews" type="button">Refresh queue</button>
+        </div>
+        <div class="insight-status" id="duplicateReviewStatus" role="status" aria-live="polite">Loading duplicate review queue…</div>
+        <div class="insights-table-wrap"><table><thead><tr><th>Publication</th><th>Candidate duplicate</th><th>Confidence</th><th>Status</th><th>Actions</th></tr></thead><tbody id="duplicateReviewRows"></tbody></table></div>
+      </section>
+
       <div class="card">
         <div style="overflow-x:auto;">
           <table>
             <thead>
-              <tr><th>Title</th><th>Faculty</th><th>Year</th><th>Venue</th><th>Type</th><th>Citations</th><th>Source</th></tr>
+              <tr><th>Title</th><th>Faculty</th><th>Year</th><th>Venue</th><th>Type</th><th>Citations</th><th>Source</th><th>Actions</th></tr>
             </thead>
             <tbody id="pubBody"></tbody>
           </table>
@@ -100,7 +115,21 @@
   </div>
 </div>
 
-<script src="js/config.js"></script>
+<dialog id="publicationDialog">
+  <form id="publicationForm" method="dialog" class="card card-pad" style="min-width:min(520px,90vw);">
+    <h2 id="publicationDialogTitle">Add publication</h2>
+    <input type="hidden" id="publicationRecordId">
+    <div class="field"><label for="publicationTitle">Title</label><input id="publicationTitle" required></div>
+    <div class="field"><label for="publicationYear">Year</label><input id="publicationYear" type="number" min="1900" required></div>
+    <div class="field"><label for="publicationVenue">Venue</label><input id="publicationVenue"></div>
+    <div class="field"><label for="publicationType">Type</label><select id="publicationType"><option>Journal</option><option>Conference</option><option>Book Chapter</option><option>Book</option><option>Patent</option><option>Preprint</option><option>Other</option></select></div>
+    <div class="field"><label for="publicationAuthors">Authors (comma separated)</label><input id="publicationAuthors"></div>
+    <div class="field"><label for="publicationCitations">Citations</label><input id="publicationCitations" type="number" min="0" value="0"></div>
+    <div class="report-actions"><button class="btn btn-primary" id="savePublicationBtn" type="button">Save</button><button class="btn btn-ghost" type="button" id="cancelPublicationBtn">Cancel</button></div>
+    <div class="report-status" id="publicationFormStatus" role="status"></div>
+  </form>
+</dialog>
+
 <script>
   const facultyFilter = document.getElementById('facultyFilter');
   const yearFilter = document.getElementById('yearFilter');
@@ -115,6 +144,12 @@
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const topbarSub = document.querySelector('.topbar-sub');
+  AUTH.initUserDisplay();
+  const apiBase = window.APP_CONFIG.API_BASE_URL.replace(/\/$/, '');
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(AUTH.getToken() ? { Authorization: `Bearer ${AUTH.getToken()}` } : {})
+  });
 
   let currentPage = 1;
   const pageSize = 6;
@@ -122,10 +157,122 @@
   let totalRecords = 0;
   let searchTimeout = null;
 
+  function openPublicationEditor(publication = null){
+    document.getElementById('publicationDialogTitle').textContent = publication ? 'Edit publication' : 'Add publication';
+    document.getElementById('publicationRecordId').value = publication?._id || '';
+    document.getElementById('publicationTitle').value = publication?.title || '';
+    document.getElementById('publicationYear').value = publication?.year || new Date().getFullYear();
+    document.getElementById('publicationVenue').value = publication?.venue || publication?.journal || publication?.conference || '';
+    document.getElementById('publicationType').value = publication?.publicationType || publication?.type || 'Journal';
+    document.getElementById('publicationAuthors').value = (publication?.authors || []).join(', ');
+    document.getElementById('publicationCitations').value = publication?.citations || 0;
+    const status = document.getElementById('publicationFormStatus');
+    status.textContent = '';
+    status.classList.remove('error');
+    document.getElementById('publicationDialog').showModal();
+  }
+
+  async function savePublication(){
+    const id = document.getElementById('publicationRecordId').value;
+    const payload = {
+      title: document.getElementById('publicationTitle').value.trim(),
+      year: Number(document.getElementById('publicationYear').value),
+      venue: document.getElementById('publicationVenue').value.trim(),
+      publicationType: document.getElementById('publicationType').value,
+      authors: document.getElementById('publicationAuthors').value.split(',').map(value => value.trim()).filter(Boolean),
+      citations: Number(document.getElementById('publicationCitations').value) || 0
+    };
+    if (AUTH.getRole() === 'admin' && facultyFilter.value) payload.facultyIds = [facultyFilter.value];
+    try {
+      const response = await fetch(`${apiBase}/publications${id ? `/${encodeURIComponent(id)}` : ''}`, {
+        method: id ? 'PUT' : 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Unable to save publication.');
+      document.getElementById('publicationDialog').close();
+      await loadPublications();
+    } catch (error) {
+      const status = document.getElementById('publicationFormStatus');
+      status.textContent = error.message;
+      status.classList.add('error');
+    }
+  }
+
+  async function loadDuplicateReviews(){
+    if (AUTH.getRole() !== 'admin') return;
+    const status = document.getElementById('duplicateReviewStatus');
+    const rows = document.getElementById('duplicateReviewRows');
+    status.textContent = 'Loading duplicate review queue…';
+    rows.replaceChildren();
+    try {
+        const response = await fetch(`${apiBase}/publications/duplicates?limit=30`, { headers: authHeaders() });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Unable to load duplicate reviews.');
+      for (const review of result.data || []) {
+        const row = document.createElement('tr');
+        const primary = review.publicationId || {};
+        const candidate = review.potentialDuplicateId || {};
+        for (const value of [primary.title, candidate.title, `${review.confidence || 'unknown'} · ${review.similarityScore ?? '—'}`]) {
+          const cell = document.createElement('td');
+          cell.textContent = value || '—';
+          row.appendChild(cell);
+        }
+        const statusCell = document.createElement('td');
+        statusCell.textContent = review.status || 'pending';
+        row.appendChild(statusCell);
+        const actions = document.createElement('td');
+        const confirm = document.createElement('button');
+        confirm.className = 'btn btn-ghost';
+        confirm.type = 'button';
+        confirm.textContent = 'Confirm';
+        confirm.disabled = review.status !== 'pending';
+        confirm.addEventListener('click', () => reviewDuplicate(review._id, 'confirm'));
+        const reject = document.createElement('button');
+        reject.className = 'btn btn-ghost';
+        reject.type = 'button';
+        reject.textContent = 'Reject';
+        reject.disabled = review.status !== 'pending';
+        reject.addEventListener('click', () => reviewDuplicate(review._id, 'reject'));
+        const merge = document.createElement('button');
+        merge.className = 'btn btn-primary';
+        merge.type = 'button';
+        merge.textContent = 'Merge';
+        merge.disabled = review.status !== 'confirmed';
+        merge.title = merge.disabled ? 'Confirm this pair before merging.' : 'Merge into the first publication.';
+        merge.addEventListener('click', () => reviewDuplicate(review._id, 'merge', primary._id));
+        actions.append(confirm, reject, merge);
+        row.appendChild(actions);
+        rows.appendChild(row);
+      }
+      const pendingCount = (result.data || []).filter(review => review.status === 'pending').length;
+      status.textContent = `${pendingCount} pending · ${(result.data || []).filter(review => review.status === 'confirmed').length} confirmed · ${(result.data || []).filter(review => review.status === 'rejected').length} rejected (first ${result.data?.length || 0} records).`;
+    } catch (error) {
+      status.textContent = error.message;
+      status.classList.add('error');
+    }
+  }
+
+  async function reviewDuplicate(reviewId, action, primaryPublicationId){
+    const path = `/publications/duplicates/${encodeURIComponent(reviewId)}/${action}`;
+    const response = await fetch(`${apiBase}${path}`, {
+      method: action === 'merge' ? 'POST' : 'PATCH',
+      headers: authHeaders(),
+      ...(action === 'merge' ? { body: JSON.stringify({ primaryPublicationId }) } : {})
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      document.getElementById('duplicateReviewStatus').textContent = result.message || `Unable to ${action} duplicate pair.`;
+      return;
+    }
+    await loadDuplicateReviews();
+  }
+
   function showLoading(){
     pubBody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center;padding:40px 20px;color:var(--ink-600);">
+        <td colspan="8" style="text-align:center;padding:40px 20px;color:var(--ink-600);">
           <div style="font-size:26px;margin-bottom:8px;">⏳</div>
           <div style="font-size:14.5px;font-weight:600;color:var(--blue-900);">Loading publication records...</div>
           <div style="font-size:12px;color:var(--ink-400);margin-top:4px;">Connecting to ${window.APP_CONFIG.API_BASE_URL}/publications</div>
@@ -138,7 +285,7 @@
   function showError(msg){
     pubBody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center;padding:40px 20px;">
+        <td colspan="8" style="text-align:center;padding:40px 20px;">
           <div style="font-size:26px;margin-bottom:8px;">⚠️</div>
           <div style="font-size:14.5px;font-weight:600;color:#b91c1c;">Failed to load publications</div>
           <div style="font-size:12.5px;color:var(--ink-600);margin-top:4px;">${msg || 'Could not connect to the backend server.'}</div>
@@ -157,7 +304,7 @@
   function showEmpty(){
     pubBody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center;padding:40px 20px;color:var(--ink-600);">
+        <td colspan="8" style="text-align:center;padding:40px 20px;color:var(--ink-600);">
           <div style="font-size:26px;margin-bottom:8px;">🔍</div>
           <div style="font-size:14.5px;font-weight:600;color:var(--blue-900);">No publications found</div>
           <div style="font-size:12.5px;color:var(--ink-400);margin-top:4px;">No records match your selected filters or search terms.</div>
@@ -182,28 +329,38 @@
       yearFilter.appendChild(opt);
     });
 
-    // Populate Faculty Filter options from API
-    try {
-      const res = await fetch(`${window.APP_CONFIG.API_BASE_URL}/faculty`);
-      const json = await res.json();
-      if(json.success && Array.isArray(json.data)){
-        facultyFilter.innerHTML = '<option value="">All faculty</option>';
-        json.data.forEach(f => {
-          const opt = document.createElement('option');
-          opt.value = f.facultyCode || f._id;
-          opt.textContent = f.name;
-          facultyFilter.appendChild(opt);
-        });
-
-        // Pre-select faculty if query param exists
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlFacultyId = urlParams.get('facultyId');
-        if(urlFacultyId){
-          facultyFilter.value = urlFacultyId;
-        }
+    if(AUTH.getRole() === 'faculty'){
+      const facultyId = AUTH.getFacultyId();
+      if(!facultyId) throw new Error('Your account is not linked to a faculty profile.');
+      let profile = AUTH.getUser()?.facultyId;
+      if(!profile || typeof profile !== 'object' || !profile.name){
+        const response = await fetch(`${apiBase}/faculty/${encodeURIComponent(facultyId)}`);
+        const result = await response.json();
+        if(!response.ok || !result.success) throw new Error(result.message || 'Unable to load your faculty profile.');
+        profile = result.data;
       }
-    } catch(err){
-      console.warn('Could not populate faculty dropdown:', err);
+      facultyFilter.replaceChildren(new Option(profile.name || 'My profile', facultyId));
+      facultyFilter.value = facultyId;
+      facultyFilter.disabled = true;
+      document.getElementById('publicationsDescription').textContent = 'Your linked publications. Add or edit only records associated with your faculty profile.';
+    } else {
+      try{
+        const res = await fetch(`${apiBase}/faculty`);
+        const json = await res.json();
+        if(json.success && Array.isArray(json.data)){
+          facultyFilter.innerHTML = '<option value="">All faculty</option>';
+          json.data.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.facultyCode || f._id;
+            opt.textContent = f.name;
+            facultyFilter.appendChild(opt);
+          });
+          const urlFacultyId = new URLSearchParams(window.location.search).get('facultyId');
+          if(urlFacultyId) facultyFilter.value = urlFacultyId;
+        }
+      } catch(err){
+        console.warn('Could not populate faculty dropdown:', err);
+      }
     }
 
     // Populate Research Domain Filter options
@@ -231,7 +388,8 @@
 
     if(yearFilter.value) params.set('year', yearFilter.value);
     if(sourceFilter.value) params.set('source', sourceFilter.value);
-    if(facultyFilter.value) params.set('facultyId', facultyFilter.value);
+    const facultyId = AUTH.getRole() === 'faculty' ? AUTH.getFacultyId() : facultyFilter.value;
+    if(facultyId) params.set('facultyId', facultyId);
     if(domainFilter.value) params.set('researchDomain', domainFilter.value);
     if(typeFilter.value) params.set('type', typeFilter.value);
     if(searchInput.value.trim()) params.set('search', searchInput.value.trim());
@@ -281,6 +439,20 @@
         <td>${p.citations || 0}</td>
         <td><span class="pill">${p.source || 'Manual'}</span></td>
       `;
+      const authorIds = (p.facultyIds || []).map(person => String(person?._id || person));
+      const canEdit = AUTH.getRole() === 'admin' || authorIds.includes(String(AUTH.getFacultyId()));
+      const actions = document.createElement('td');
+      if(canEdit){
+        const edit = document.createElement('button');
+        edit.className = 'btn btn-ghost';
+        edit.type = 'button';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => openPublicationEditor(p));
+        actions.appendChild(edit);
+      } else {
+        actions.textContent = '—';
+      }
+      tr.appendChild(actions);
       pubBody.appendChild(tr);
     });
 
@@ -336,10 +508,16 @@
     }
   });
 
+  document.getElementById('addPublicationBtn').addEventListener('click', () => openPublicationEditor());
+  document.getElementById('savePublicationBtn').addEventListener('click', savePublication);
+  document.getElementById('cancelPublicationBtn').addEventListener('click', () => document.getElementById('publicationDialog').close());
+  document.getElementById('refreshDuplicateReviews').addEventListener('click', loadDuplicateReviews);
+
   // Initialize
   initFilters().then(() => {
     loadPublications();
-  });
+    if(AUTH.getRole() === 'admin') loadDuplicateReviews();
+  }).catch(error => showError(error.message));
 </script>
 </body>
 </html>

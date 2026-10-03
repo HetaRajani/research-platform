@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reports · Research Analytics Platform</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=role-ui">
 <script src="js/config.js"></script>
+<script src="js/auth.js?v=role-ui"></script>
+<script>AUTH.protectPage();</script>
 </head>
 <body>
 
@@ -21,13 +23,14 @@
     <nav class="nav-group">
       <div class="nav-label">Workspace</div>
       <a class="nav-link" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
-      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> <span data-role-label data-admin-label="Faculty Directory" data-faculty-label="My Profile">Faculty Directory</span></a>
       <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
       <a class="nav-link active" href="reports.html"><span class="ico">▦</span> Reports</a>
     </nav>
     <nav class="nav-group">
       <div class="nav-label">Research insights</div>
-      <a class="nav-link" href="insights.html#emerging"><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="insights.html#emerging" data-admin-only><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="publications.html#duplicateReviewPanel" data-admin-only><span class="ico">⧉</span> Duplicate Review</a>
       <a class="nav-link" href="insights.html#collaborators"><span class="ico">✦</span> Collaborator suggestions</a>
       <a class="nav-link" href="insights.html#forecast"><span class="ico">▤</span> Productivity forecast</a>
       <a class="nav-link" href="insights.html#assistant"><span class="ico">✳</span> Research assistant</a>
@@ -46,8 +49,9 @@
       </div>
       <div class="topbar-right">
         <div class="avatar-chip">
-          <div class="dot">AM</div>
-          <div class="who">Dr. Anjali Mehta<div class="role">Faculty</div></div>
+          <div class="dot" id="userDot">RA</div>
+          <div class="who"><span id="userName">Research analytics</span><div class="role" id="userRole">—</div></div>
+          <button id="logoutBtn" type="button" class="btn btn-ghost">Sign out</button>
         </div>
       </div>
     </header>
@@ -65,16 +69,16 @@
           <div class="field">
             <label>Report type</label>
             <select id="reportType">
-              <option>Accreditation summary (NAAC / NBA)</option>
+              <option data-admin-only>Accreditation summary (NAAC / NBA)</option>
               <option>Faculty promotion dossier</option>
-              <option>Institutional ranking submission</option>
-              <option>Annual research report</option>
+              <option data-admin-only>Institutional ranking submission</option>
+              <option data-admin-only>Annual research report</option>
             </select>
           </div>
           <div class="field">
             <label for="reportScope">Scope</label>
             <select id="reportScope">
-              <option value="all">Institution-wide</option>
+              <option value="all" data-admin-only>Institution-wide</option>
             </select>
           </div>
           <div class="field">
@@ -122,6 +126,7 @@
 </div>
 
 <script>
+  AUTH.initUserDisplay();
   (() => {
     const apiBase = window.APP_CONFIG.API_BASE_URL.replace(/\/$/, '');
     const scopeSelect = document.getElementById('reportScope');
@@ -142,7 +147,9 @@
     const getJson = async path => {
       let response;
       try {
-        response = await fetch(`${apiBase}${path}`);
+        response = await fetch(`${apiBase}${path}`, {
+          headers: AUTH.getToken() ? { Authorization: `Bearer ${AUTH.getToken()}` } : {}
+        });
       } catch {
         throw new Error('Cannot connect to the research analytics service. Check the API server and try again.');
       }
@@ -227,9 +234,9 @@
       const [facultyResult, publications, collaborationResult, forecastResult, emergingResult] = await Promise.all([
         getJson(`/faculty/${encodeURIComponent(facultyId)}`),
         loadAllPublications(facultyId),
-        getJson('/analytics/collaborations'),
+        AUTH.getRole() === 'admin' ? getJson('/analytics/collaborations') : Promise.resolve({ data: [] }),
         getJson(`/analytics/productivity-forecast/${encodeURIComponent(facultyId)}`),
-        getJson('/analytics/emerging-research')
+        AUTH.getRole() === 'admin' ? getJson('/analytics/emerging-research') : Promise.resolve({ data: [] })
       ]);
       const faculty = facultyResult.data;
       const title = `${document.getElementById('reportType').value} — ${faculty.name}`;
@@ -357,17 +364,19 @@
       }
       body.appendChild(collaborationSection);
 
-      const emerging = (emergingResult.data || []).filter(item => item.isEmerging);
-      const emergingSection = createSection('Institutional emerging research', 'Institution-wide context from recent predicted-domain publication trends.');
-      if (emerging.length) {
-        const emergingRows = emerging.map(item => [item.rank, item.domain, item.latestYear, item.latestCount, `${item.growthRate}%`, item.trendDirection, item.emergingScore]);
-        emergingSection.appendChild(createTable(['Rank', 'Domain', 'Year', 'Publications', 'Growth', 'Trend', 'Score'], emergingRows));
-        csv.push(['Institutional emerging research'], ['Rank', 'Domain', 'Year', 'Publications', 'Growth', 'Trend', 'Score'], ...emergingRows, []);
-      } else {
-        addMessage(emergingSection, 'No emerging research domains are currently identified.');
-        csv.push(['Institutional emerging research'], ['Note', 'No emerging research domains are currently identified.'], []);
+      if (AUTH.getRole() === 'admin') {
+        const emerging = (emergingResult.data || []).filter(item => item.isEmerging);
+        const emergingSection = createSection('Institutional emerging research', 'Institution-wide context from recent predicted-domain publication trends.');
+        if (emerging.length) {
+          const emergingRows = emerging.map(item => [item.rank, item.domain, item.latestYear, item.latestCount, `${item.growthRate}%`, item.trendDirection, item.emergingScore]);
+          emergingSection.appendChild(createTable(['Rank', 'Domain', 'Year', 'Publications', 'Growth', 'Trend', 'Score'], emergingRows));
+          csv.push(['Institutional emerging research'], ['Rank', 'Domain', 'Year', 'Publications', 'Growth', 'Trend', 'Score'], ...emergingRows, []);
+        } else {
+          addMessage(emergingSection, 'No emerging research domains are currently identified.');
+          csv.push(['Institutional emerging research'], ['Note', 'No emerging research domains are currently identified.'], []);
+        }
+        body.appendChild(emergingSection);
       }
-      body.appendChild(emergingSection);
       return { title, body, csv };
     };
 
@@ -471,8 +480,12 @@
       previewCard.style.display = 'none';
       setStatus('Retrieving current records from the analytics service…');
       try {
-        const scope = scopeSelect.value;
-        const report = scope === 'all' ? await institutionReport() : await facultyReport(scope);
+        const role = AUTH.getRole();
+        const facultyId = AUTH.getFacultyId();
+        if (role === 'faculty' && !facultyId) throw new Error('Your account is not linked to a faculty profile.');
+        const scope = role === 'admin' ? scopeSelect.value : facultyId;
+        if (role === 'faculty' && scope === 'all') throw new Error('Faculty reports are limited to your own profile.');
+        const report = role === 'admin' && scope === 'all' ? await institutionReport() : await facultyReport(scope);
         document.getElementById('previewTitle').textContent = report.title;
         document.getElementById('reportGenerated').textContent = `Generated ${new Date().toLocaleString()} · Period: ${periodDescription()}`;
         document.getElementById('reportDataNote').textContent = scope === 'all'
@@ -512,6 +525,17 @@
 
     const loadFaculty = async () => {
       try {
+        if (AUTH.getRole() === 'faculty') {
+          const facultyId = AUTH.getFacultyId();
+          if (!facultyId) throw new Error('Your account is not linked to a faculty profile.');
+          const result = await getJson(`/faculty/${encodeURIComponent(facultyId)}`);
+          scopeSelect.replaceChildren(new Option(`${result.data.name} · ${result.data.department}`, facultyId));
+          scopeSelect.value = facultyId;
+          scopeSelect.disabled = true;
+          document.getElementById('reportType').value = 'Faculty promotion dossier';
+          setStatus('Your report scope is locked to your faculty profile.');
+          return;
+        }
         const result = await getJson('/faculty');
         facultyRecords = result.data || [];
         for (const faculty of facultyRecords) {

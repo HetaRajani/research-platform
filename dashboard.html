@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Research Analytics Platform</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=role-ui">
 <script src="js/config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/auth.js?v=role-ui"></script>
 <script>
   if (!AUTH.protectPage()) {
     // Redirects unauthenticated users immediately
@@ -27,13 +27,13 @@
     <nav class="nav-group">
       <div class="nav-label">Workspace</div>
       <a class="nav-link active" href="dashboard.html"><span class="ico">▣</span> Dashboard</a>
-      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> Faculty Directory</a>
+      <a class="nav-link" href="faculty.html"><span class="ico">◍</span> <span data-role-label data-admin-label="Faculty Directory" data-faculty-label="My Profile">Faculty Directory</span></a>
       <a class="nav-link" href="publications.html"><span class="ico">▤</span> Publications</a>
       <a class="nav-link" href="reports.html"><span class="ico">▦</span> Reports</a>
     </nav>
     <nav class="nav-group">
       <div class="nav-label">Research insights</div>
-      <a class="nav-link" href="insights.html#emerging"><span class="ico">↗</span> Emerging research</a>
+      <a class="nav-link" href="insights.html#emerging" data-admin-only><span class="ico">↗</span> Emerging research</a>
       <a class="nav-link" href="insights.html#collaborators"><span class="ico">✦</span> Collaborator suggestions</a>
       <a class="nav-link" href="insights.html#forecast"><span class="ico">▤</span> Productivity forecast</a>
       <a class="nav-link" href="insights.html#assistant"><span class="ico">✳</span> Research assistant</a>
@@ -47,7 +47,7 @@
   <div class="main">
     <header class="topbar">
       <div>
-        <div class="topbar-title">Overview</div>
+        <div class="topbar-title" data-role-label data-admin-label="Admin Console" data-faculty-label="My Research Profile">Overview</div>
         <div class="topbar-sub" id="topbarSub">Institutional research snapshot · live MongoDB data</div>
       </div>
       <div class="topbar-right">
@@ -66,12 +66,12 @@
     <main class="content">
 
       <div class="page-head">
-        <span class="eyebrow">Live snapshot</span>
-        <h1 style="font-size:22px;">Institutional research performance</h1>
+        <span class="eyebrow" data-role-label data-admin-label="Live snapshot" data-faculty-label="Personal profile">Live snapshot</span>
+        <h1 style="font-size:22px;" data-role-label data-admin-label="Institutional research performance" data-faculty-label="My Research">Institutional research performance</h1>
         <div class="desc" id="pageHeadDesc">Institutional research performance and analytics aggregated from live MongoDB data.</div>
       </div>
 
-      <div class="grid grid-4" style="margin-bottom:20px;">
+      <div class="grid grid-4" style="margin-bottom:20px;" data-admin-only>
         <div class="stat-card" id="cardFaculty">
           <div class="label">Total faculty tracked</div>
           <div class="value" id="statFaculty">—</div>
@@ -94,7 +94,7 @@
         </div>
       </div>
 
-      <div class="grid grid-2" style="margin-bottom:20px;">
+      <div class="grid grid-2" style="margin-bottom:20px;" data-admin-only>
         <div class="card">
           <div class="card-head">
             <div>
@@ -109,7 +109,7 @@
           <div class="chart-box"><div id="trendChart"></div></div>
         </div>
 
-        <div class="card card-pad">
+        <div class="card card-pad" data-admin-only>
           <h3>Data source connections</h3>
           <div class="hint" style="margin-bottom:14px;">Status of automated pulls per faculty record</div>
           <div id="sourceStatus" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -117,7 +117,7 @@
         </div>
       </div>
 
-      <div class="grid grid-2" style="margin-bottom:20px;">
+      <div class="grid grid-2" style="margin-bottom:20px;" data-admin-only>
         <div class="card">
           <div class="card-head">
             <div>
@@ -143,7 +143,7 @@
         </div>
       </div>
 
-      <div class="grid grid-2" style="margin-bottom:20px;">
+      <div class="grid grid-2" style="margin-bottom:20px;" data-admin-only>
         <div class="card card-pad" id="deptSection">
           <div class="card-head" style="margin-bottom:12px;">
             <div>
@@ -185,6 +185,72 @@
           </div>
         </div>
       </div>
+
+      <section class="card card-pad" data-admin-only aria-labelledby="integrationHeading" style="margin-bottom:20px;">
+        <div class="card-head">
+          <div>
+            <h3 id="integrationHeading">Integrations</h3>
+            <div class="hint">Import records from configured Google Scholar, Scopus, and ORCID sources.</div>
+          </div>
+        </div>
+        <div class="filters-row" style="margin-top:12px;">
+          <label for="integrationFaculty">Faculty member</label>
+          <select id="integrationFaculty"><option value="">Select faculty</option></select>
+          <button class="btn btn-ghost" type="button" data-integration-source="google-scholar">Sync Google Scholar</button>
+          <button class="btn btn-ghost" type="button" data-integration-source="scopus">Sync Scopus</button>
+          <button class="btn btn-ghost" type="button" data-integration-source="orcid">Sync ORCID</button>
+        </div>
+        <div class="insight-status" id="integrationStatus" role="status" aria-live="polite">Select a faculty member to manage source imports.</div>
+      </section>
+
+      <section class="card card-pad" data-faculty-only aria-labelledby="myResearchHeading" style="margin-bottom:20px;">
+        <div class="card-head">
+          <div>
+            <h3 id="myResearchHeading">My Research</h3>
+            <div class="hint" id="myResearchIdentity">Loading your linked faculty profile…</div>
+          </div>
+        </div>
+        <div class="grid grid-4" style="margin:16px 0;">
+          <div class="stat-card"><div class="label">h-index</div><div class="value" id="myHIndex">—</div></div>
+          <div class="stat-card"><div class="label">i10-index</div><div class="value" id="myI10Index">—</div></div>
+          <div class="stat-card"><div class="label">Total citations</div><div class="value" id="myCitations">—</div></div>
+          <div class="stat-card"><div class="label">Publications</div><div class="value" id="myPublicationCount">—</div></div>
+        </div>
+        <div class="grid grid-2">
+          <div class="card card-pad">
+            <h3>My publication trend</h3>
+            <div id="myTrendChart" class="chart-box"></div>
+          </div>
+          <div class="card card-pad">
+            <h3>My research domains</h3>
+            <div id="myResearchDomains" style="margin:12px 0;">Loading domains…</div>
+            <div class="report-actions">
+              <a class="btn btn-ghost" href="insights.html#collaborators">Collaborator recommendations</a>
+              <a class="btn btn-ghost" href="insights.html#forecast">Productivity forecast</a>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-2" style="margin-top:16px;">
+          <div class="card card-pad">
+            <div class="card-head"><div><h3>Collaborator recommendations</h3><div class="hint">Researchers connected by shared domains</div></div><a class="btn btn-ghost" href="insights.html#collaborators">View all</a></div>
+            <div id="myCollaborators" class="insight-status" role="status" aria-live="polite">Loading recommendations…</div>
+          </div>
+          <div class="card card-pad">
+            <div class="card-head"><div><h3>Productivity forecast</h3><div class="hint">Baseline from your publication history</div></div><a class="btn btn-ghost" href="insights.html#forecast">Details</a></div>
+            <div id="myForecast" class="insight-status" role="status" aria-live="polite">Loading forecast…</div>
+          </div>
+        </div>
+        <div class="card card-pad" style="margin-top:16px;">
+          <h3>My ORCID</h3>
+          <div class="filters-row" style="margin-top:10px;">
+            <label for="myOrcidId">ORCID iD</label>
+            <input id="myOrcidId" type="text" placeholder="0000-0000-0000-0000">
+            <button class="btn btn-ghost" id="saveMyOrcid" type="button">Save ORCID</button>
+            <button class="btn btn-primary" id="syncMyOrcid" type="button">Import ORCID works</button>
+          </div>
+          <div class="insight-status" id="myOrcidStatus" role="status" aria-live="polite">Only your linked ORCID profile can be imported here.</div>
+        </div>
+      </section>
 
       <div class="footnote">
         Research Analytics Platform · Powered by MongoDB Atlas live data models and analytics endpoints.
@@ -421,10 +487,14 @@
 
     try {
       const res = await fetch(getApiUrl('/faculty'), { headers: getApiHeaders() });
+
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
           const facultyList = json.data;
+          const integrationFaculty = document.getElementById('integrationFaculty');
+          integrationFaculty.replaceChildren(new Option('Select faculty', ''));
+          facultyList.forEach(person => integrationFaculty.add(new Option(`${person.name} · ${person.department}`, person._id)));
 
           if (topBody) {
             topBody.innerHTML = '';
@@ -489,6 +559,142 @@
     }
   }
 
+  async function loadMyResearch() {
+    const facultyId = AUTH.getFacultyId();
+    const identity = document.getElementById('myResearchIdentity');
+    if (!facultyId) {
+      identity.textContent = 'Your account is not linked to a faculty profile.';
+      return;
+    }
+    try {
+      const paths = [
+        `/faculty/${encodeURIComponent(facultyId)}`,
+        `/publications?facultyId=${encodeURIComponent(facultyId)}&page=1&limit=100`,
+        `/analytics/collaborator-recommendations/${encodeURIComponent(facultyId)}`,
+        `/analytics/productivity-forecast/${encodeURIComponent(facultyId)}`
+      ];
+      const responses = await Promise.all(paths.map(path => fetch(getApiUrl(path), { headers: getApiHeaders() })));
+      const payloads = await Promise.all(responses.map(response => response.json()));
+      const [profileResult, publicationsResult, recommendationsResult, forecastResult] = payloads;
+      if (!responses[0].ok || !profileResult.success || !profileResult.data) throw new Error(profileResult.message || 'Unable to load your profile.');
+      if (!responses[1].ok || !publicationsResult.success || !Array.isArray(publicationsResult.data)) throw new Error(publicationsResult.message || 'Unable to load your publications.');
+
+      const profile = profileResult.data;
+      const publications = publicationsResult.data;
+      identity.textContent = `${profile.name} · ${profile.designation || 'Faculty'} · ${profile.department || 'Department not set'}`;
+      document.getElementById('myHIndex').textContent = profile.hIndex ?? 0;
+      document.getElementById('myI10Index').textContent = profile.i10Index ?? 0;
+      document.getElementById('myCitations').textContent = Number(profile.citationCount || 0).toLocaleString();
+      document.getElementById('myPublicationCount').textContent = Number(profile.publicationCount ?? publications.length).toLocaleString();
+
+      const domainBox = document.getElementById('myResearchDomains');
+      domainBox.replaceChildren();
+      const domains = profile.researchInterests || profile.researchAreas || [];
+      if (domains.length) domains.forEach(domain => {
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = typeof domain === 'string' ? domain : domain.name;
+        domainBox.appendChild(tag);
+      });
+      else domainBox.textContent = 'No research domains are recorded on your profile.';
+
+      const yearly = new Map();
+      publications.forEach(publication => {
+        const year = Number(publication.year);
+        if (Number.isInteger(year)) yearly.set(year, (yearly.get(year) || 0) + 1);
+      });
+      const years = [...yearly.entries()].sort((a, b) => a[0] - b[0]);
+      const chart = document.getElementById('myTrendChart');
+      if (years.length) renderLineChart(chart, {
+        labels: years.map(([year]) => String(year)),
+        lines: [{ name: 'Publications', color: '#1B54A3', data: years.map(([, count]) => count), fill: true }]
+      }, { height: 210 });
+      else chart.textContent = 'No yearly publication records are available.';
+
+      const collaboratorBox = document.getElementById('myCollaborators');
+      collaboratorBox.replaceChildren();
+      const recommendations = recommendationsResult.success ? recommendationsResult.data || [] : [];
+      if (recommendations.length) recommendations.slice(0, 5).forEach(recommendation => {
+        const item = document.createElement('div');
+        item.className = 'milestone';
+        item.textContent = `${recommendation.name} · ${(recommendation.sharedDomains || []).join(', ') || 'Shared research domain'}`;
+        collaboratorBox.appendChild(item);
+      });
+      else collaboratorBox.textContent = 'No collaborator recommendations are available yet.';
+
+      const forecastBox = document.getElementById('myForecast');
+      const forecast = forecastResult.success && forecastResult.data;
+      forecastBox.textContent = forecast?.forecastAvailable
+        ? `${forecast.forecastYear}: ${forecast.forecastPublicationCount} publications · ${forecast.trendDirection || 'trend unavailable'}`
+        : forecast?.forecastSummary || forecastResult.message || 'More publication history is needed for a forecast.';
+      const orcidInput = document.getElementById('myOrcidId');
+      orcidInput.value = profile.orcidId || profile.orcid || '';
+      document.getElementById('syncMyOrcid').disabled = !orcidInput.value;
+    } catch (error) {
+      identity.textContent = error.message;
+      identity.classList.add('error');
+    }
+  }
+
+  async function saveMyOrcid() {
+    const facultyId = AUTH.getFacultyId();
+    const orcidId = document.getElementById('myOrcidId').value.trim();
+    const status = document.getElementById('myOrcidStatus');
+    if (!facultyId || !orcidId) {
+      status.textContent = 'Enter an ORCID iD for your linked profile.';
+      return;
+    }
+    try {
+      const response = await fetch(getApiUrl(`/faculty/${encodeURIComponent(facultyId)}`), {
+        method: 'PUT', headers: getApiHeaders(), body: JSON.stringify({ orcidId })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Unable to save your ORCID iD.');
+      document.getElementById('syncMyOrcid').disabled = false;
+      status.textContent = 'ORCID iD saved to your faculty profile.';
+    } catch (error) {
+      status.textContent = error.message;
+      status.classList.add('error');
+    }
+  }
+
+  async function importSourceRecords(facultyId, source) {
+    const status = document.getElementById(AUTH.getRole() === 'admin' ? 'integrationStatus' : 'myOrcidStatus');
+    status.textContent = `Checking ${source} records…`;
+    try {
+      const endpoint = `/integrations/${source}/${encodeURIComponent(facultyId)}`;
+      const response = await fetch(getApiUrl(endpoint), { headers: getApiHeaders() });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `${source} sync failed.`);
+      const publications = result.publications || result.works || result.data?.publications || result.data?.works || [];
+      if (!publications.length) {
+        status.textContent = `${source} returned no records to import.`;
+        return;
+      }
+      const importResponse = await fetch(getApiUrl(`${endpoint}/import`), {
+        method: 'POST', headers: getApiHeaders(), body: JSON.stringify({ publications })
+      });
+      const imported = await importResponse.json();
+      if (!importResponse.ok || imported.success === false) throw new Error(imported.message || `${source} import failed.`);
+      status.textContent = `Imported ${imported.importedCount ?? imported.data?.importedCount ?? publications.length} ${source} records.`;
+    } catch (error) {
+      status.textContent = error.message;
+      status.classList.add('error');
+    }
+  }
+
+  document.getElementById('saveMyOrcid').addEventListener('click', saveMyOrcid);
+  document.getElementById('syncMyOrcid').addEventListener('click', () => {
+    const facultyId = AUTH.getFacultyId();
+    if (facultyId) importSourceRecords(facultyId, 'orcid');
+  });
+  document.querySelectorAll('[data-integration-source]').forEach(button => {
+    button.addEventListener('click', () => {
+      const facultyId = document.getElementById('integrationFaculty').value;
+      if (facultyId) importSourceRecords(facultyId, button.dataset.integrationSource);
+    });
+  });
+
   // ---- 6. Milestone List ----
   const milestones = [
     { t:'Requirement analysis & data model design', d:'Entities for faculty, publications, sources finalized', s:'done' },
@@ -520,12 +726,18 @@
   // Initialize authenticated user profile in topbar
   AUTH.initUserDisplay();
 
-  // Load all analytics data
-  loadOverview();
-  loadYearlyTrends();
-  loadDepartmentAnalytics();
-  loadResearchDomainAnalytics();
-  loadTopFacultyAndSources();
+  const role = AUTH.getRole();
+  if (role === 'admin') {
+    loadOverview();
+    loadYearlyTrends();
+    loadDepartmentAnalytics();
+    loadResearchDomainAnalytics();
+    loadTopFacultyAndSources();
+  } else if (role === 'faculty') {
+    document.getElementById('topbarSub').textContent = 'Your publications, research domains, and profile metrics';
+    document.getElementById('pageHeadDesc').textContent = 'Your personal research profile and publication analytics.';
+    loadMyResearch();
+  }
 </script>
 </body>
 </html>
