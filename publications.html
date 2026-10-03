@@ -144,7 +144,34 @@
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const topbarSub = document.querySelector('.topbar-sub');
+  const facultyNavLabel = document.querySelector('a[href="faculty.html"] [data-role-label]');
+  const publicationsHeading = document.querySelector('.page-head h1[data-role-label]');
   AUTH.initUserDisplay();
+
+  function applyPublicationsRoleState() {
+    const role = AUTH.getRole();
+    if (role === 'faculty') {
+      if (facultyFilter) {
+        facultyFilter.style.display = 'none';
+        facultyFilter.disabled = true;
+      }
+      if (publicationsHeading) publicationsHeading.textContent = 'My publications';
+      if (facultyNavLabel) facultyNavLabel.textContent = 'My Profile';
+      const description = document.getElementById('publicationsDescription');
+      if (description) {
+        description.textContent = 'Your linked publications. Add or edit only records associated with your faculty profile.';
+      }
+      return;
+    }
+
+    if (facultyFilter) {
+      facultyFilter.style.display = '';
+      facultyFilter.disabled = false;
+    }
+    if (publicationsHeading) publicationsHeading.textContent = 'All indexed publications';
+    if (facultyNavLabel) facultyNavLabel.textContent = 'Faculty Directory';
+  }
+
   const apiBase = window.APP_CONFIG.API_BASE_URL.replace(/\/$/, '');
   const authHeaders = () => ({
     'Content-Type': 'application/json',
@@ -342,8 +369,13 @@
       facultyFilter.replaceChildren(new Option(profile.name || 'My profile', facultyId));
       facultyFilter.value = facultyId;
       facultyFilter.disabled = true;
+      facultyFilter.style.display = 'none';
       document.getElementById('publicationsDescription').textContent = 'Your linked publications. Add or edit only records associated with your faculty profile.';
+      if (publicationsHeading) publicationsHeading.textContent = 'My publications';
+      if (facultyNavLabel) facultyNavLabel.textContent = 'My Profile';
     } else {
+      facultyFilter.style.display = '';
+      facultyFilter.disabled = false;
       try{
         const res = await fetch(`${apiBase}/faculty`);
         const json = await res.json();
@@ -514,7 +546,9 @@
   document.getElementById('refreshDuplicateReviews').addEventListener('click', loadDuplicateReviews);
 
   // Initialize
+  applyPublicationsRoleState();
   initFilters().then(() => {
+    applyPublicationsRoleState();
     loadPublications();
     if(AUTH.getRole() === 'admin') loadDuplicateReviews();
   }).catch(error => showError(error.message));
