@@ -24,7 +24,7 @@ Serve the frontend from the repository root in another terminal:
 python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080/`. The API defaults to `http://localhost:5000/api`.
+Open `http://localhost:8080/`. The API defaults to `http://localhost:5001/api` because port 5000 is occupied on macOS by the system ControlCenter service.
 
 ## Tests
 

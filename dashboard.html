@@ -274,7 +274,7 @@
     if (window.AUTH && window.AUTH.getApiUrl) {
       return window.AUTH.getApiUrl(path);
     }
-    const base = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) || 'http://localhost:5000/api';
+    const base = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) || 'http://localhost:5001/api';
     return base + (path.startsWith('/') ? path : '/' + path);
   }
 

@@ -109,7 +109,7 @@
      * @returns {string}
      */
     getApiUrl(path) {
-      const base = (global.APP_CONFIG && global.APP_CONFIG.API_BASE_URL) || 'http://localhost:5000/api';
+      const base = (global.APP_CONFIG && global.APP_CONFIG.API_BASE_URL) || 'http://localhost:5001/api';
       const cleanPath = path.startsWith('/') ? path : '/' + path;
       return `${base}${cleanPath}`;
     },
